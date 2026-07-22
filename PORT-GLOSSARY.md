@@ -81,3 +81,19 @@ in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
   identically); the zero `time.Time` marshals as `"0001-01-01T00:00:00Z"`.
 - Go `nil` slice marshals as `null`, empty non-nil slice as `[]` — match the
   source's slice initialization to keep golden bytes identical.
+
+## report module (module 6) — model.rs serde parity helpers (IMPLEMENTED)
+Two custom serde helper modules now live in `src/model.rs`; reuse them, do not
+re-invent, for any later module that serializes model types:
+- `null_if_empty` — applied via `serialize_with`/`deserialize_with` to EVERY
+  `Vec<T>` field in the Plan graph. Empty vec → JSON `null`; non-empty → array;
+  `null` → empty vec on deserialize. This is the Go nil-slice-vs-array contract.
+  Consequence: the JSON distinction is empty-vs-non-empty, NOT nil-vs-non-nil
+  (Rust has no nil vec) — faithful for all tested plans.
+- `go_time` — applied to `Fingerprint.last_commit` + `dir_mtime`
+  (`DateTime<Utc>`). Serializes Go `time.Time.MarshalJSON`: `Z` suffix (not
+  `+00:00`), fractional seconds trimmed, whole seconds → no fractional part;
+  zero value → `"0001-01-01T00:00:00Z"`. Deserialize parses `Z` and offset forms.
+- `StrategyKind` string form (`A-richest-quarantine`/`B-union-branches`/
+  `C-snapshot`) is produced in `report::strategy_str` for the human-facing md
+  files; JSON uses the serde rename (identical strings).

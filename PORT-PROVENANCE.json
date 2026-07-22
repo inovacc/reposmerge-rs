@@ -49,6 +49,19 @@
       ],
       "target_files": [ "src/discover.rs" ],
       "status": "verified"
+    },
+    "report": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/report/report.go", "sha256": "d663f37e755a4dd0800d2142003304d970f35b2bca8a887b64e5584c9f414aed" },
+        { "path": "internal/report/report_test.go", "sha256": "5d2d4a7ebb28a5767e7e348e48404f68ad2d62601fef8e2011ec706fee0eaffd" },
+        { "path": "internal/report/report_golden_test.go", "sha256": "0f80270c1849f6966c4836febe016c87daf650e020a5e20de8f8b4da1694002e" },
+        { "path": "internal/report/testdata/golden/plan.json", "sha256": "36b97886b8606c6978c88efb996bdcd7b6437eb432b9a5eca69b413c96505964" },
+        { "path": "internal/report/testdata/golden/divergence.md", "sha256": "d115ac0f5c70b6ea1392faa0fffca2c8c5a2572389dfe4a8fc845628382ba5ed" },
+        { "path": "internal/report/testdata/golden/MANIFEST.md", "sha256": "b9bccb1e0c54979eac529a546aa32a4c64a04be5656dd364ea3f28a5b822e4ee" }
+      ],
+      "target_files": [ "src/report.rs", "src/model.rs", "tests/golden/plan.json", "tests/golden/divergence.md", "tests/golden/MANIFEST.md" ],
+      "status": "verified"
     }
   }
 }

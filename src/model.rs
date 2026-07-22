@@ -7,6 +7,68 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Parity helper (report module): Go marshals a `nil` slice as JSON `null` and a
+/// populated slice as an array. Rust `Vec<T>` would serialize an empty vec as
+/// `[]`, which breaks byte-exact golden parity. This module makes every Plan
+/// `Vec<T>` field serialize as `null` when empty and an array otherwise, and
+/// deserialize `null` -> empty Vec so `LoadPlan` round-trips.
+mod null_if_empty {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S, T>(v: &[T], s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        if v.is_empty() {
+            s.serialize_none()
+        } else {
+            s.serialize_some(v)
+        }
+    }
+
+    pub fn deserialize<'de, D, T>(d: D) -> Result<Vec<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        Ok(Option::<Vec<T>>::deserialize(d)?.unwrap_or_default())
+    }
+}
+
+/// Parity helper (report module): reproduce Go `time.Time.MarshalJSON`, which
+/// emits RFC3339 with a trailing `Z` for UTC and fractional seconds trimmed of
+/// trailing zeros (whole seconds -> no fractional part at all). chrono's default
+/// serde emits `+00:00` instead of `Z`, which would break the golden. The zero
+/// value marshals to exactly `"0001-01-01T00:00:00Z"`.
+mod go_time {
+    use chrono::{DateTime, SecondsFormat, Utc};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(t: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let out = if t.timestamp_subsec_nanos() == 0 {
+            // whole seconds -> no fractional part, trailing `Z`.
+            t.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+        } else {
+            // fractional seconds present -> RFC3339 with `Z`, trimmed groups.
+            t.to_rfc3339_opts(SecondsFormat::AutoSi, true)
+        };
+        s.serialize_str(&out)
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(d)?;
+        let dt = DateTime::parse_from_rfc3339(&s).map_err(serde::de::Error::custom)?;
+        Ok(dt.with_timezone(&Utc))
+    }
+}
+
 /// Zero `time.Time` equivalent: Go's zero value marshals as
 /// `"0001-01-01T00:00:00Z"`. chrono can represent year 1, so this reproduces
 /// Go's zero-value semantics. PARITY-VERIFY: confirm RFC3339 formatting matches
@@ -63,13 +125,25 @@ pub struct Fingerprint {
     #[serde(rename = "Head")]
     pub head: String,
     /// root-commit shas, sorted (lineage identity)
-    #[serde(rename = "RootCommits")]
+    #[serde(
+        rename = "RootCommits",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub root_commits: Vec<String>,
     /// all reachable commit shas across all refs, sorted
-    #[serde(rename = "AllCommits")]
+    #[serde(
+        rename = "AllCommits",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub all_commits: Vec<String>,
     /// local branches
-    #[serde(rename = "Branches")]
+    #[serde(
+        rename = "Branches",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub branches: Vec<Branch>,
     /// commits ahead of origin's matching branch
     #[serde(rename = "Ahead")]
@@ -90,13 +164,21 @@ pub struct Fingerprint {
     #[serde(rename = "CommitCount")]
     pub commit_count: i64,
     /// author date of HEAD
-    #[serde(rename = "LastCommit")]
+    #[serde(
+        rename = "LastCommit",
+        serialize_with = "go_time::serialize",
+        deserialize_with = "go_time::deserialize"
+    )]
     pub last_commit: DateTime<Utc>,
     /// bytes, generated dirs excluded
     #[serde(rename = "WorktreeSize")]
     pub worktree_size: i64,
     /// mtime of the repo dir
-    #[serde(rename = "DirMtime")]
+    #[serde(
+        rename = "DirMtime",
+        serialize_with = "go_time::serialize",
+        deserialize_with = "go_time::deserialize"
+    )]
     pub dir_mtime: DateTime<Utc>,
 }
 
@@ -175,7 +257,11 @@ pub struct Group {
     pub has_remote: bool,
     #[serde(rename = "RemoteURL")]
     pub remote_url: String,
-    #[serde(rename = "Copies")]
+    #[serde(
+        rename = "Copies",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub copies: Vec<Copy>,
 }
 
@@ -191,7 +277,11 @@ pub struct QuarantineItem {
     #[serde(rename = "Reason")]
     pub reason: String,
     /// SHAs present here but not in canonical
-    #[serde(rename = "UnreachableCommits")]
+    #[serde(
+        rename = "UnreachableCommits",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub unreachable_commits: Vec<String>,
 }
 
@@ -205,7 +295,11 @@ pub struct UnionRemote {
     #[serde(rename = "Path")]
     pub path: String,
     /// branches to preserve as consolidate/<machine>/<branch>
-    #[serde(rename = "Branches")]
+    #[serde(
+        rename = "Branches",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub branches: Vec<String>,
 }
 
@@ -223,12 +317,24 @@ pub struct Decision {
     /// canonical/<owner>/<repo>
     #[serde(rename = "DestPath")]
     pub dest_path: String,
-    #[serde(rename = "Quarantine")]
+    #[serde(
+        rename = "Quarantine",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub quarantine: Vec<QuarantineItem>,
     /// strict-subset copy paths (safe to delete; NOT deleted)
-    #[serde(rename = "Redundant")]
+    #[serde(
+        rename = "Redundant",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub redundant: Vec<String>,
-    #[serde(rename = "UnionRemotes")]
+    #[serde(
+        rename = "UnionRemotes",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub union_remotes: Vec<UnionRemote>,
 }
 
@@ -243,26 +349,46 @@ pub struct ApplyResult {
     pub unioned: i64,
     #[serde(rename = "Skipped")]
     pub skipped: i64,
-    #[serde(rename = "SkippedFiles")]
+    #[serde(
+        rename = "SkippedFiles",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub skipped_files: Vec<String>,
-    #[serde(rename = "Actions")]
+    #[serde(
+        rename = "Actions",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub actions: Vec<String>,
 }
 
 /// Plan is the full set of decisions for a run.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Plan {
-    #[serde(rename = "Roots")]
+    #[serde(
+        rename = "Roots",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub roots: Vec<String>,
     #[serde(rename = "Dest")]
     pub dest: String,
     /// RFC3339; injected by the command layer
     #[serde(rename = "GeneratedAt")]
     pub generated_at: String,
-    #[serde(rename = "Decisions")]
+    #[serde(
+        rename = "Decisions",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub decisions: Vec<Decision>,
     /// inventory only
-    #[serde(rename = "ThirdParty")]
+    #[serde(
+        rename = "ThirdParty",
+        serialize_with = "null_if_empty::serialize",
+        deserialize_with = "null_if_empty::deserialize"
+    )]
     pub third_party: Vec<Copy>,
 }
 

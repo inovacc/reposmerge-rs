@@ -12,7 +12,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 3 | fingerprint | ☑ | ☑ | ☑ | PASS (3 tests total) | (see git) |
 | 4 | group       | ☑ | ☑ | ☑ | PASS (6 tests total) | (see git) |
 | 5 | discover    | ☑ | ☑ | ☑ | PASS (13 tests total) | (see git) |
-| 6 | report      | ☐ | ☐ | ☐ | — | — |
+| 6 | report      | ☑ | ☑ | ☑ | PASS (18 tests, byte-golden ✓) | (see git) |
 | 7 | safety      | ☐ | ☐ | ☐ | — | — |
 | 8 | strategy    | ☐ | ☐ | ☐ | — | — |
 | 9 | consolidate | ☐ | ☐ | ☐ | — | — |
@@ -26,7 +26,10 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 - `chrono` (features=["serde"]) — RFC3339/calendar time parity for `LastCommit`/
   `DirMtime`; `std::time` cannot format calendar dates or the Go zero-time
   `0001-01-01T00:00:00Z`. Alt: `time` crate — chrono chosen for serde+RFC3339Nano.
-- `serde_json` — deferred to `report` module (not needed by `model` itself).
+- `serde_json` — added at `report` module (JSON MarshalIndent/Unmarshal parity).
+- `csv` (module 6, report) — Go `encoding/csv`; std has no CSV writer. Alt: hand-roll
+  quoting — rejected (edge cases: embedded quotes/commas/newlines). Terminator forced
+  to LF to match Go default (crate default is CRLF).
 - `sha2` (module 5, discover) — Sha256 for `source_disc`; std has no crypto. Alt:
   hand-rolled sha256 = reinvention defect, rejected.
 - `hex` (module 5, discover) — hex-encode the digest (Go encoding/hex). Well-known;
@@ -133,6 +136,53 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 - NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
   (fail→green: module was gated behind `// pub mod discover;`), `cargo build`, fill
   provenance sha256 (currently `PENDING-EXEC`), commit.
+
+## report (module 6) — HIGHEST parity risk (byte-exact goldens)
+- Dependencies added: `serde_json`, `csv` (justified above). Reuses `sha2`, `hex`,
+  `walkdir`. Consumes `crate::model::*`.
+- Public API (all take `&Path`, return `io::Result`):
+  `write_inventory(dir, in_scope: &[Copy], third_party: &[Copy])`,
+  `write_plan(dir, p: &Plan)`, `load_plan(path) -> io::Result<Plan>`,
+  `write_checksums(dir, dest)`, `write_manifest(dir, p: &Plan, res: &ApplyResult)`.
+  Private: `reports_dir`, `write_csv`, `checksum_file`, `go_slice_v`, `strategy_str`.
+- **MODEL CHANGE (parity fix 1) — nil-slice → JSON `null`.** Added `null_if_empty`
+  serde helper module in `src/model.rs`; applied `serialize_with`/`deserialize_with`
+  to EVERY `Vec<T>` field across Fingerprint (root_commits/all_commits/branches),
+  Group.copies, QuarantineItem.unreachable_commits, UnionRemote.branches, Decision
+  (quarantine/redundant/union_remotes), ApplyResult (skipped_files/actions), Plan
+  (roots/decisions/third_party). Empty vec → `null`; non-empty → array; `null` →
+  empty vec on load. Reproduces Go's nil-slice-vs-array JSON distinction.
+- **MODEL CHANGE (parity fix 2) — zero-time `0001-01-01T00:00:00Z`.** Added `go_time`
+  serde helper in `src/model.rs` on Fingerprint.last_commit + dir_mtime. Emits
+  `%Y-%m-%dT%H:%M:%SZ` when nanos==0 (whole seconds, trailing `Z`, no fractional),
+  else RFC3339 with `Z` + trimmed fractional groups. Replaces chrono's default
+  `+00:00`. Deserialize parses both `Z` and offset forms → `DateTime<Utc>`.
+- JSON shape: `serde_json::to_string_pretty` (2-space indent, declaration-order
+  keys) written with NO trailing newline (matches Go MarshalIndent). Field order in
+  model structs already matches Go — unchanged.
+- divergence.md / MANIFEST.md built by string concat mirroring the Go `fmt.Fprintf`
+  sequence exactly; `go_slice_v` reproduces Go `%v` on `[]string` → `[a b c]`.
+- Golden fixtures copied verbatim to `tests/golden/{plan.json,divergence.md,MANIFEST.md}`.
+  Golden test reads them via `CARGO_MANIFEST_DIR`.
+- BYTE-PARITY CONCERNS for conductor to verify (this module WILL likely need
+  byte-diff iteration):
+  1. chrono `%Y` must zero-pad year 1 to `0001` (believed correct; VERIFY).
+  2. `serde_json::to_string_pretty` array/null/number/bool formatting must match Go
+     `json.MarshalIndent` char-for-char (2-space indent confirmed; verify nested
+     empty containers — none present in golden).
+  3. Go escapes `<>&` to `\u00XX`; serde_json does NOT. Golden has none of these
+     chars, so no divergence here — but any future data with them would differ.
+  4. Trailing-newline state: plan.json NONE, divergence.md ends `\n\n`,
+     MANIFEST.md ends `\n`. Written exactly; verify golden files preserved LF (no
+     CRLF/autocrlf mangling on Windows checkout — check `.gitattributes`).
+  5. The em-dash `—` (U+2014) in divergence.md/MANIFEST.md headers is UTF-8 in both
+     source and port; confirm no encoding drift.
+  6. csv terminator forced to LF; Go csv default LF. Tests only assert Contains/
+     HasPrefix so terminator is loose there.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green: `report` was gated behind `// pub mod report;`), `cargo build`,
+  iterate on any golden byte-diff, fill provenance sha256 (`PENDING-EXEC`), set
+  row 6 verified, commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.

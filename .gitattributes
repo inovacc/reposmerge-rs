@@ -1,0 +1,5 @@
+# Golden report fixtures are byte-compared against generator output that emits
+# LF line endings. Force LF so a Windows checkout never rewrites them to CRLF.
+tests/golden/plan.json text eol=lf
+tests/golden/divergence.md text eol=lf
+tests/golden/MANIFEST.md text eol=lf

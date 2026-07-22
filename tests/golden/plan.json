@@ -1,0 +1,255 @@
+{
+  "Roots": [
+    "repos/root1",
+    "repos/root2"
+  ],
+  "Dest": "canonical",
+  "GeneratedAt": "2026-06-24T00:00:00Z",
+  "Decisions": [
+    {
+      "Group": {
+        "Key": "https://github.com/inovacc/omni.git",
+        "Owner": "inovacc",
+        "RepoName": "omni",
+        "HasRemote": true,
+        "RemoteURL": "https://github.com/inovacc/omni.git",
+        "Copies": [
+          {
+            "Path": "repos/root1/inovacc/omni",
+            "Root": "repos/root1",
+            "Machine": "live",
+            "Owner": "inovacc",
+            "RepoName": "omni",
+            "RemoteURL": "https://github.com/inovacc/omni.git",
+            "FP": {
+              "Head": "aaaaaaa1111111111111111111111111111111",
+              "RootCommits": null,
+              "AllCommits": [
+                "aaaaaaa1111111111111111111111111111111"
+              ],
+              "Branches": null,
+              "Ahead": 2,
+              "Behind": 0,
+              "DirtyCount": 0,
+              "UntrackedCount": 0,
+              "StashCount": 0,
+              "CommitCount": 1,
+              "LastCommit": "0001-01-01T00:00:00Z",
+              "WorktreeSize": 0,
+              "DirMtime": "0001-01-01T00:00:00Z"
+            }
+          },
+          {
+            "Path": "repos/root2/inovacc/omni",
+            "Root": "repos/root2",
+            "Machine": "acer",
+            "Owner": "inovacc",
+            "RepoName": "omni",
+            "RemoteURL": "https://github.com/inovacc/omni.git",
+            "FP": {
+              "Head": "bbbbbbb2222222222222222222222222222222",
+              "RootCommits": null,
+              "AllCommits": null,
+              "Branches": null,
+              "Ahead": 0,
+              "Behind": 0,
+              "DirtyCount": 1,
+              "UntrackedCount": 0,
+              "StashCount": 0,
+              "CommitCount": 0,
+              "LastCommit": "0001-01-01T00:00:00Z",
+              "WorktreeSize": 0,
+              "DirMtime": "0001-01-01T00:00:00Z"
+            }
+          }
+        ]
+      },
+      "Strategy": "A-richest-quarantine",
+      "Canonical": {
+        "Path": "repos/root1/inovacc/omni",
+        "Root": "repos/root1",
+        "Machine": "live",
+        "Owner": "inovacc",
+        "RepoName": "omni",
+        "RemoteURL": "https://github.com/inovacc/omni.git",
+        "FP": {
+          "Head": "aaaaaaa1111111111111111111111111111111",
+          "RootCommits": null,
+          "AllCommits": null,
+          "Branches": null,
+          "Ahead": 2,
+          "Behind": 0,
+          "DirtyCount": 0,
+          "UntrackedCount": 0,
+          "StashCount": 0,
+          "CommitCount": 0,
+          "LastCommit": "0001-01-01T00:00:00Z",
+          "WorktreeSize": 0,
+          "DirMtime": "0001-01-01T00:00:00Z"
+        }
+      },
+      "CanonicalReason": "most commits ahead of origin",
+      "DestPath": "canonical/inovacc/omni",
+      "Quarantine": [
+        {
+          "Copy": {
+            "Path": "repos/root2/inovacc/omni",
+            "Root": "repos/root2",
+            "Machine": "acer",
+            "Owner": "inovacc",
+            "RepoName": "omni",
+            "RemoteURL": "",
+            "FP": {
+              "Head": "",
+              "RootCommits": null,
+              "AllCommits": null,
+              "Branches": null,
+              "Ahead": 0,
+              "Behind": 0,
+              "DirtyCount": 0,
+              "UntrackedCount": 0,
+              "StashCount": 0,
+              "CommitCount": 0,
+              "LastCommit": "0001-01-01T00:00:00Z",
+              "WorktreeSize": 0,
+              "DirMtime": "0001-01-01T00:00:00Z"
+            }
+          },
+          "DestPath": "canonical/inovacc/omni/_quarantine/acer",
+          "Reason": "dirty working tree with unreachable commits",
+          "UnreachableCommits": [
+            "deadbeef1111111111111111111111111111111"
+          ]
+        }
+      ],
+      "Redundant": [
+        "repos/root3/inovacc/omni"
+      ],
+      "UnionRemotes": null
+    },
+    {
+      "Group": {
+        "Key": "noremote:root1234567:loom",
+        "Owner": "personal",
+        "RepoName": "loom",
+        "HasRemote": false,
+        "RemoteURL": "",
+        "Copies": [
+          {
+            "Path": "repos/root1/personal/loom",
+            "Root": "repos/root1",
+            "Machine": "live",
+            "Owner": "personal",
+            "RepoName": "loom",
+            "RemoteURL": "",
+            "FP": {
+              "Head": "",
+              "RootCommits": [
+                "root1234567890123456789012345678901234"
+              ],
+              "AllCommits": null,
+              "Branches": null,
+              "Ahead": 0,
+              "Behind": 0,
+              "DirtyCount": 0,
+              "UntrackedCount": 0,
+              "StashCount": 0,
+              "CommitCount": 0,
+              "LastCommit": "0001-01-01T00:00:00Z",
+              "WorktreeSize": 0,
+              "DirMtime": "0001-01-01T00:00:00Z"
+            }
+          },
+          {
+            "Path": "repos/root2/personal/loom",
+            "Root": "repos/root2",
+            "Machine": "acer",
+            "Owner": "personal",
+            "RepoName": "loom",
+            "RemoteURL": "",
+            "FP": {
+              "Head": "",
+              "RootCommits": [
+                "root1234567890123456789012345678901234"
+              ],
+              "AllCommits": null,
+              "Branches": null,
+              "Ahead": 0,
+              "Behind": 0,
+              "DirtyCount": 0,
+              "UntrackedCount": 0,
+              "StashCount": 0,
+              "CommitCount": 0,
+              "LastCommit": "0001-01-01T00:00:00Z",
+              "WorktreeSize": 0,
+              "DirMtime": "0001-01-01T00:00:00Z"
+            }
+          }
+        ]
+      },
+      "Strategy": "B-union-branches",
+      "Canonical": {
+        "Path": "repos/root1/personal/loom",
+        "Root": "repos/root1",
+        "Machine": "live",
+        "Owner": "personal",
+        "RepoName": "loom",
+        "RemoteURL": "",
+        "FP": {
+          "Head": "",
+          "RootCommits": null,
+          "AllCommits": null,
+          "Branches": null,
+          "Ahead": 0,
+          "Behind": 0,
+          "DirtyCount": 0,
+          "UntrackedCount": 0,
+          "StashCount": 0,
+          "CommitCount": 0,
+          "LastCommit": "0001-01-01T00:00:00Z",
+          "WorktreeSize": 0,
+          "DirMtime": "0001-01-01T00:00:00Z"
+        }
+      },
+      "CanonicalReason": "richest fingerprint (shared lineage)",
+      "DestPath": "canonical/personal/loom",
+      "Quarantine": null,
+      "Redundant": null,
+      "UnionRemotes": [
+        {
+          "Name": "consolidate-acer",
+          "Path": "repos/root2/personal/loom",
+          "Branches": [
+            "main",
+            "feature-x"
+          ]
+        }
+      ]
+    }
+  ],
+  "ThirdParty": [
+    {
+      "Path": "repos/root1/vendor/thirdlib",
+      "Root": "repos/root1",
+      "Machine": "live",
+      "Owner": "",
+      "RepoName": "thirdlib",
+      "RemoteURL": "",
+      "FP": {
+        "Head": "",
+        "RootCommits": null,
+        "AllCommits": null,
+        "Branches": null,
+        "Ahead": 0,
+        "Behind": 0,
+        "DirtyCount": 0,
+        "UntrackedCount": 0,
+        "StashCount": 0,
+        "CommitCount": 0,
+        "LastCommit": "0001-01-01T00:00:00Z",
+        "WorktreeSize": 0,
+        "DirMtime": "0001-01-01T00:00:00Z"
+      }
+    }
+  ]
+}
