@@ -15,11 +15,11 @@ use std::process::Command;
 use reposmerge::consolidate::{self, Options};
 use reposmerge::discover::{default_scope, discover};
 use reposmerge::fingerprint;
+use reposmerge::gitx::new_runner;
 use reposmerge::group;
 use reposmerge::model::{Plan, StrategyKind};
 use reposmerge::safety::{self, physical_reachability, reachability_proof};
 use reposmerge::strategy;
-use reposmerge::gitx::new_runner;
 
 fn git(dir: &Path, args: &[&str]) {
     let out = Command::new("git")
@@ -70,7 +70,13 @@ fn consolidate_preserves_all_commits() {
     let roots = temp_dir("roots");
 
     // base local-only repo with a shared root commit
-    let base = mkdir(&roots.join("development").join("personal").join("projects").join("auditor"));
+    let base = mkdir(
+        &roots
+            .join("development")
+            .join("personal")
+            .join("projects")
+            .join("auditor"),
+    );
     init_repo(&base);
     write(&base, "shared.txt", "shared");
     git(&base, &["add", "."]);
@@ -82,13 +88,8 @@ fn consolidate_preserves_all_commits() {
         .join("acer")
         .join("projects")
         .join("auditor");
-    safety::copy_tree(
-        base.to_str().unwrap(),
-        other.to_str().unwrap(),
-        &[],
-        false,
-    )
-    .expect("copy_tree");
+    safety::copy_tree(base.to_str().unwrap(), other.to_str().unwrap(), &[], false)
+        .expect("copy_tree");
 
     // diverge: each copy gets a unique commit
     write(&base, "live.txt", "live");
@@ -132,7 +133,10 @@ fn consolidate_preserves_all_commits() {
     );
 
     let vio = reachability_proof(&plan);
-    assert!(vio.is_empty(), "reachability violations before apply: {vio:?}");
+    assert!(
+        vio.is_empty(),
+        "reachability violations before apply: {vio:?}"
+    );
 
     consolidate::apply(
         &r,
@@ -160,7 +164,10 @@ fn consolidate_preserves_all_commits() {
 
     // PhysicalReachability must pass post-apply
     let pv = physical_reachability(&r, &plan);
-    assert!(pv.is_empty(), "physical reachability violations after apply: {pv:?}");
+    assert!(
+        pv.is_empty(),
+        "physical reachability violations after apply: {pv:?}"
+    );
 
     // sources must be untouched
     for src in [&base, &other] {
