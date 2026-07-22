@@ -8,11 +8,79 @@ use std::collections::{HashMap, HashSet};
 use crate::discover;
 use crate::model::{Copy, Decision, Group, QuarantineItem, StrategyKind, UnionRemote};
 
-/// Joins path segments with '/' (Go `path.Join` semantics, forward-slash only,
-/// even on Windows). For the inputs used here (no `.`/`..`/empty/trailing
-/// components) a simple '/'-join is equivalent to Go's `path.Join` + `Clean`.
+/// Faithful port of Go `path.Join`: join the non-empty elements with '/', then
+/// run `path.Clean`. Forward-slash only, even on Windows. This matters at runtime:
+/// the CLI's default `dest_root` is `"./canonical"`, and Go's `path.Clean` strips
+/// the leading `./` (so `DestPath` is `canonical/...`, not `./canonical/...`).
 fn path_join(parts: &[&str]) -> String {
-    parts.join("/")
+    let joined = parts
+        .iter()
+        .filter(|e| !e.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join("/");
+    path_clean(&joined)
+}
+
+/// Faithful port of Go `path.Clean` (lexical, forward-slash). Returns the
+/// shortest equivalent path: collapses multiple slashes, drops `.` elements,
+/// resolves `..` against the accumulated output, and removes a trailing slash.
+/// An empty path cleans to `.`.
+fn path_clean(path: &str) -> String {
+    if path.is_empty() {
+        return ".".to_string();
+    }
+    let b = path.as_bytes();
+    let n = b.len();
+    let rooted = b[0] == b'/';
+    let mut out: Vec<u8> = Vec::with_capacity(n);
+    // `dotdot` marks the point in `out` before which `..` cannot backtrack.
+    let mut r = 0usize;
+    let mut dotdot = 0usize;
+    if rooted {
+        out.push(b'/');
+        r = 1;
+        dotdot = 1;
+    }
+    while r < n {
+        if b[r] == b'/' {
+            // empty path element
+            r += 1;
+        } else if b[r] == b'.' && (r + 1 == n || b[r + 1] == b'/') {
+            // `.` element
+            r += 1;
+        } else if b[r] == b'.' && b[r + 1] == b'.' && (r + 2 == n || b[r + 2] == b'/') {
+            // `..` element: remove to last '/'
+            r += 2;
+            if out.len() > dotdot {
+                let mut w = out.len() - 1;
+                while w > dotdot && out[w] != b'/' {
+                    w -= 1;
+                }
+                out.truncate(w);
+            } else if !rooted {
+                if !out.is_empty() {
+                    out.push(b'/');
+                }
+                out.push(b'.');
+                out.push(b'.');
+                dotdot = out.len();
+            }
+        } else {
+            // real path element: add slash if needed, then copy it
+            if (rooted && out.len() != 1) || (!rooted && !out.is_empty()) {
+                out.push(b'/');
+            }
+            while r < n && b[r] != b'/' {
+                out.push(b[r]);
+                r += 1;
+            }
+        }
+    }
+    if out.is_empty() {
+        return ".".to_string();
+    }
+    String::from_utf8(out).unwrap()
 }
 
 /// Decide produces the planned action for a group.

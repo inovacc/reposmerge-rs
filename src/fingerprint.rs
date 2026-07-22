@@ -12,7 +12,7 @@
 //! - `head` uses Go's `fp.Head, _ =` — keeps whatever string (""" on error) →
 //!   `unwrap_or_default` again.
 
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 
 use crate::gitx::{GitError, Runner};
 use crate::model::{Branch, Copy, Fingerprint};
@@ -87,7 +87,9 @@ pub fn compute(r: &dyn Runner, c: &mut Copy) -> Result<(), GitError> {
         if !iso.is_empty() {
             // Go time.Parse(time.RFC3339, iso). On parse error leave zero-time.
             if let Ok(t) = DateTime::parse_from_rfc3339(&iso) {
-                fp.last_commit = t.with_timezone(&Utc);
+                // Go time.Parse(RFC3339, %cI) keeps the commit's local offset; we
+                // preserve it (DateTime<FixedOffset>) rather than normalizing to UTC.
+                fp.last_commit = t;
             }
         }
     }

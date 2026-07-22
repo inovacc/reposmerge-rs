@@ -4,7 +4,7 @@
 //! `json.MarshalIndent` with NO json tags, so JSON keys are exact PascalCase.
 //! Each field carries `#[serde(rename = "...")]` to reproduce those keys.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 
 /// Parity helper (report module): Go marshals a `nil` slice as JSON `null` and a
@@ -37,50 +37,61 @@ mod null_if_empty {
 }
 
 /// Parity helper (report module): reproduce Go `time.Time.MarshalJSON`, which
-/// emits RFC3339 with a trailing `Z` for UTC and fractional seconds trimmed of
-/// trailing zeros (whole seconds -> no fractional part at all). chrono's default
-/// serde emits `+00:00` instead of `Z`, which would break the golden. The zero
-/// value marshals to exactly `"0001-01-01T00:00:00Z"`.
+/// emits RFC3339Nano — the value's OWN timezone offset (`Z` only when that offset
+/// is zero) and fractional seconds trimmed of trailing zeros (whole seconds -> no
+/// fractional part at all). Go keeps the commit's local offset (git `%cI`) and the
+/// file's local mtime offset, so the port stores `DateTime<FixedOffset>` and emits
+/// the original offset rather than normalizing to UTC. chrono's default serde
+/// (`+00:00`, group-quantized fractions) would diverge, so this is hand-rolled.
+/// The zero value (offset 0) marshals to exactly `"0001-01-01T00:00:00Z"`.
 mod go_time {
-    use chrono::{DateTime, SecondsFormat, Utc};
+    use chrono::{DateTime, FixedOffset, Timelike};
     use serde::{Deserialize, Deserializer, Serializer};
 
-    pub fn serialize<S>(t: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(t: &DateTime<FixedOffset>, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let out = if t.timestamp_subsec_nanos() == 0 {
-            // whole seconds -> no fractional part, trailing `Z`.
-            t.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+        let mut out = t.format("%Y-%m-%dT%H:%M:%S").to_string();
+        // Fractional seconds: Go trims trailing zeros (RFC3339Nano); omit entirely
+        // when whole-second.
+        let nanos = t.nanosecond();
+        if nanos > 0 {
+            let frac = format!("{nanos:09}");
+            out.push('.');
+            out.push_str(frac.trim_end_matches('0'));
+        }
+        // Offset: Go's `Z07:00` layout emits `Z` for a zero offset, else `+HH:MM`.
+        let off = t.offset().local_minus_utc();
+        if off == 0 {
+            out.push('Z');
         } else {
-            // fractional seconds present -> RFC3339 with `Z`, trimmed groups.
-            t.to_rfc3339_opts(SecondsFormat::AutoSi, true)
-        };
+            let sign = if off < 0 { '-' } else { '+' };
+            let a = off.abs();
+            out.push(sign);
+            out.push_str(&format!("{:02}:{:02}", a / 3600, (a % 3600) / 60));
+        }
         s.serialize_str(&out)
     }
 
-    pub fn deserialize<'de, D>(d: D) -> Result<DateTime<Utc>, D::Error>
+    pub fn deserialize<'de, D>(d: D) -> Result<DateTime<FixedOffset>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(d)?;
-        let dt = DateTime::parse_from_rfc3339(&s).map_err(serde::de::Error::custom)?;
-        Ok(dt.with_timezone(&Utc))
+        DateTime::parse_from_rfc3339(&s).map_err(serde::de::Error::custom)
     }
 }
 
 /// Zero `time.Time` equivalent: Go's zero value marshals as
-/// `"0001-01-01T00:00:00Z"`. chrono can represent year 1, so this reproduces
-/// Go's zero-value semantics. PARITY-VERIFY: confirm RFC3339 formatting matches
-/// once the `report` module lands (see PORT-TRACK deviations).
-fn zero_time() -> DateTime<Utc> {
-    DateTime::<Utc>::from_naive_utc_and_offset(
-        chrono::NaiveDate::from_ymd_opt(1, 1, 1)
-            .unwrap()
-            .and_hms_opt(0, 0, 0)
-            .unwrap(),
-        Utc,
-    )
+/// `"0001-01-01T00:00:00Z"` — year 1, UTC (offset 0). Stored as a
+/// `DateTime<FixedOffset>` with a zero offset so `go_time` emits the trailing `Z`.
+fn zero_time() -> DateTime<FixedOffset> {
+    let naive = chrono::NaiveDate::from_ymd_opt(1, 1, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    DateTime::from_naive_utc_and_offset(naive, FixedOffset::east_opt(0).unwrap())
 }
 
 /// Copy is one on-disk working-tree of a repo found during discovery.
@@ -169,7 +180,7 @@ pub struct Fingerprint {
         serialize_with = "go_time::serialize",
         deserialize_with = "go_time::deserialize"
     )]
-    pub last_commit: DateTime<Utc>,
+    pub last_commit: DateTime<FixedOffset>,
     /// bytes, generated dirs excluded
     #[serde(rename = "WorktreeSize")]
     pub worktree_size: i64,
@@ -179,7 +190,7 @@ pub struct Fingerprint {
         serialize_with = "go_time::serialize",
         deserialize_with = "go_time::deserialize"
     )]
-    pub dir_mtime: DateTime<Utc>,
+    pub dir_mtime: DateTime<FixedOffset>,
 }
 
 impl Default for Fingerprint {

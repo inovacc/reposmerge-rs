@@ -18,7 +18,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Local, SecondsFormat, Utc};
 use clap::{Parser, Subcommand};
 
 use reposmerge::consolidate::{self, Options};
@@ -152,7 +152,9 @@ fn run_scan(
                         let _ = fingerprint::compute(runner, copy);
                         if let Ok(md) = std::fs::metadata(&copy.path) {
                             if let Ok(mt) = md.modified() {
-                                copy.fp.dir_mtime = DateTime::<Utc>::from(mt);
+                                // Go fi.ModTime() is local time with its offset;
+                                // match that rather than normalizing to UTC.
+                                copy.fp.dir_mtime = DateTime::<Local>::from(mt).fixed_offset();
                             }
                         }
                     }

@@ -3,6 +3,24 @@
 Source: `github.com/inovacc/reposmerge` @ `479a7c585fad56d4330a1136e5f19b682d02c609`
 Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 
+## Audit (differential Go-oracle) — 3 findings fixed → byte-parity
+`/unravel:port:audit` ran the real CLI (scan/plan/verify) through BOTH the Go and
+Rust binaries against an identical git-repo tree and diffed outputs. All 4 report
+artifacts (plan.json/inventory.csv/third-party.csv/divergence.md) are now
+BYTE-IDENTICAL (plan.json 7904 bytes). Fixes applied:
+1. **DestPath `./` (strategy::path_join)** — CLI default `dest_root="./canonical"`;
+   Go `path.Join` runs `path.Clean` (→ `canonical/...`), the Rust join did not
+   (→ `./canonical/...`). Fixed: `path_join` now ports Go `path.Clean` faithfully.
+2. **Timestamp timezone (model/fingerprint/main)** — Go keeps the commit's local
+   offset (`%cI`) and the file's local mtime offset; the port normalized to UTC
+   (`Z`). Fixed: `LastCommit`/`DirMtime` are now `DateTime<FixedOffset>`; the offset
+   is preserved (zero offset still emits `Z`, matching Go's zero-time + UTC commits).
+3. **Fractional seconds (model::go_time)** — Go RFC3339Nano trims trailing zeros
+   (`.2496821`); chrono `AutoSi` group-quantized (`.249682100`). Fixed: hand-rolled
+   nanosecond formatting trims trailing zeros.
+Remaining stdout difference is ONLY mantle's slog framework logging (out-of-scope
+boundary, see below); reposmerge's own stdout lines match byte-for-byte.
+
 ## Modules (dependency order) — 11 port-units
 
 | # | module | tests-ported | code-ported | verified | parity | commit |
