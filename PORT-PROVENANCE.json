@@ -31,6 +31,15 @@
       ],
       "target_files": [ "src/fingerprint.rs" ],
       "status": "verified"
+    },
+    "group": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/group/group.go", "sha256": "93d9fee25500625134e68b9d9973d895a877bdeae065ee38c8212485ab017a9f" },
+        { "path": "internal/group/group_test.go", "sha256": "7179f6bdbfb8929b9d42ef669b85d1a08341e9348c72d1ce65f4d9a7f300cc98" }
+      ],
+      "target_files": [ "src/group.rs" ],
+      "status": "verified"
     }
   }
 }

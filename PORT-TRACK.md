@@ -10,7 +10,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 1 | model       | ☑ | ☑ | ☑ | PASS (1 test) | (see git) |
 | 2 | gitx        | ☑ | ☑ | ☑ | PASS (2 tests total) | (see git) |
 | 3 | fingerprint | ☑ | ☑ | ☑ | PASS (3 tests total) | (see git) |
-| 4 | group       | ☐ | ☐ | ☐ | — | — |
+| 4 | group       | ☑ | ☑ | ☑ | PASS (6 tests total) | (see git) |
 | 5 | discover    | ☐ | ☐ | ☐ | — | — |
 | 6 | report      | ☐ | ☐ | ☐ | — | — |
 | 7 | safety      | ☐ | ☐ | ☐ | — | — |
@@ -73,6 +73,24 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   (fail→green — note the single Fake test likely passes on first compile since it
   needs no ExecRunner; confirm build + the fail state came only from the missing
   module), `cargo build`, fill provenance sha256, commit.
+
+## group (module 4)
+- Dependencies added: **none** (std only: `std::collections::HashMap`; consumes
+  `crate::model::{Copy, Group}`).
+- `build(copies: Vec<Copy>) -> Vec<Group>` (Go `Build([]Copy) []Group`).
+- FAITHFUL insertion order: Go keeps `order []string` beside `map[string]*Group`
+  and emits groups in first-seen key order. Reproduced with `order: Vec<String>`
+  + `HashMap<String, Group>`; `or_insert_with` pushes the key to `order` only on
+  first sight. HashMap iteration order is NEVER used → deterministic parity.
+- `group_key`: `remote:<url>` when `remote_url` non-empty, else
+  `noremote:<repo_name>:<lineage>`. `lineage`: clone `fp.root_commits`, `sort()`
+  (byte-lexicographic == Go `sort.Strings`); empty → `"EMPTY"`, else join `,`.
+- Tests: 3 faithful ports (remote merge / divergent-lineage no-merge / same-
+  lineage merge) with `cp(name,url,root)` helper.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (confirm the 3 group tests fail before compile / green after — since the module
+  was gated behind `// pub mod group;`, the fail state is the un-compiled module),
+  `cargo build`, fill provenance sha256 (currently `PENDING-EXEC`), commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.
