@@ -14,18 +14,18 @@ The entire tool has been ported 1:1 from `github.com/inovacc/reposmerge` (Go sou
 
 ## Test Coverage
 
-- **52 tests total** — 50 lib unit tests (including a byte-exact golden in `report` and a Windows atomic-rollback test in `safety`), 1 CLI subcommand-registration test, 1 real-git e2e test.
-- **Coverage (cargo-llvm-cov):** ~86.6% line · 86.9% region · 81.6% function.
-- Every module carries tests: model (1), gitx (2), fingerprint (3), group (6 cumulative), discover (13 cumulative), report (18 cumulative, byte-golden), safety (32 cumulative, Windows rollback), strategy (38 cumulative), consolidate (49 cumulative, real-git), main (CLI subcommands), e2e (full pipeline). See `PORT-TRACK.md` for the per-module ledger.
+- **55 tests total** — 50 lib unit tests (including a byte-exact golden in `report` and a Windows-gated atomic-rollback test in `safety`), 4 CLI tests (subcommand registration + 3 branch tests), 1 real-git e2e test.
+- **Coverage (cargo-llvm-cov):** 88.20% line · 87.58% region · 83.18% function. Lowest module is `main.rs` at 52.7% (CLI wiring — exercised mainly via the real-binary differential rather than unit tests).
+- Every module carries tests: model, gitx, fingerprint, group, discover, report (byte-golden), safety (Windows rollback), strategy, consolidate (real-git), main (CLI), e2e (full pipeline). See `PORT-TRACK.md` for the per-module ledger.
 
 ## Phase 1 — Release & distribution (in progress)
 
 - [x] CI workflow — fmt-check + `clippy -D warnings` + build + test on linux/macos/windows, plus a `cargo-llvm-cov` coverage job (`.github/workflows/ci.yml`, commit `1c5701b`).
 - [x] Clippy-clean gate + `rustfmt.toml`/`clippy.toml` config (commit `7e14d42`).
-- [x] Release packaging — cross-platform binaries for 5 targets on a `v*` tag (`.github/workflows/release.yml`, commit `1c5701b`).
+- [x] Release packaging — cross-platform binaries for 5 targets on a `v*` tag (`.github/workflows/release.yml`, commit `1c5701b`). **SHIPPED** — tag `v1.0.0` released, workflow green, 5 binaries published.
 - [x] Cargo publish metadata (authors/repository/keywords/categories/readme/rust-version, commit `da3463f`).
-- [ ] Add a git remote and push the repository (currently local-only — needs a remote URL).
-- [ ] Publish to crates.io once a remote exists (name `reposmerge`; the Go original is not on crates.io, so no collision expected — fall back to a suffixed name if taken).
+- [x] Add a git remote and push the repository — remote live at <https://github.com/inovacc/reposmerge-rs> (commits `9c4652d`/`bebb878`).
+- [ ] Publish to crates.io (name `reposmerge`; the Go original is not on crates.io, so no collision expected — fall back to a suffixed name if taken). **Now unblocked** — the remote exists.
 
 ## Phase 2 — Post-parity enhancements (backlog)
 

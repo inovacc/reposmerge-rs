@@ -24,6 +24,6 @@ The `tests/e2e.rs` integration test, several real-git unit tests (discover neste
 
 The safety atomic-rollback test is **Windows-only** (skipped elsewhere, mirroring the Go `runtime.GOOS` skip). It forces `remove_dir_all` to fail by holding a handle open without delete-sharing to exercise the rollback path. On non-Windows platforms the rollback assertions are not exercised.
 
-## Repository is local-only
+## Repository is local-only — RESOLVED (2026-07-22)
 
-There is no git remote configured for this crate; it cannot be cloned/pushed until a remote is added (tracked in `docs/BACKLOG.md`).
+~~There is no git remote configured for this crate.~~ **Resolved:** the repository is now live at <https://github.com/inovacc/reposmerge-rs> (public, default branch `main`) with tag `v1.0.0` released. The only remaining distribution item is the crates.io publish (tracked in `docs/BACKLOG.md`).

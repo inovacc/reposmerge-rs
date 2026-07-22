@@ -1,5 +1,5 @@
 # reposmerge
-<!-- rev:001 (RFC 3339) 2026-07-22T19:46:58Z -->
+<!-- rev:002 (RFC 3339) 2026-07-22T23:47:23Z -->
 
 > Consolidate duplicated/scattered git repository copies into one canonical tree — without losing a single commit.
 
@@ -20,7 +20,11 @@
 
 ## Install / Build
 
-Requires a Rust toolchain (edition 2021) and `git` on `PATH` for real-repo operations.
+Requires `git` on `PATH` for real-repo operations.
+
+**Prebuilt binaries** — download a `v1.0.0` binary for your platform (5 targets) from the [GitHub Releases](https://github.com/inovacc/reposmerge-rs/releases/tag/v1.0.0) page.
+
+**From source** — requires a Rust toolchain (edition 2021, MSRV 1.74):
 
 ```bash
 cargo build --release        # binary at target/release/reposmerge

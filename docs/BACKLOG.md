@@ -6,11 +6,10 @@ Prioritized future work and tech debt. The port itself is complete and byte-pari
 
 ## P1 — release readiness
 
-| Item | Notes | Effort |
-|------|-------|--------|
-| Add a git remote + publish | Repository is currently **local-only** (no remote configured). Create a remote and push. **Needs a remote URL — blocked on input.** | S |
+_All P1 items are complete — see Done below. Remaining open work is the crates.io publish under P3._
 
 ### Done (2026-07-22)
+- ~~Add a git remote + publish~~ — remote live at <https://github.com/inovacc/reposmerge-rs>; pushed and tag `v1.0.0` released with 5 cross-platform binaries (commits `9c4652d`/`bebb878`).
 - ~~CI workflow~~ — added `.github/workflows/ci.yml`: fmt-check + `clippy -D warnings` + build + test (linux/macos/windows) + `cargo-llvm-cov` (commit `1c5701b`).
 - ~~Release packaging~~ — added `.github/workflows/release.yml`: 5-target cross-platform binaries on a `v*` tag (commit `1c5701b`).
 - ~~Cargo publish metadata~~ — authors/repository/keywords/categories/readme/rust-version (commit `da3463f`).
@@ -31,7 +30,8 @@ These are documented, intentional deviations — track them in case downstream n
 
 | Item | Notes | Effort |
 |------|-------|--------|
-| Publish to crates.io | **Decision:** publish as `reposmerge` — the Go original is not on crates.io, so no name collision is expected (fall back to a suffixed name if taken). Blocked on adding a git remote first. | S |
+| Publish to crates.io | **Decision:** publish as `reposmerge` — the Go original is not on crates.io, so no name collision is expected (fall back to a suffixed name if taken). Remote dependency now satisfied — **unblocked**. | S |
 | Cross-platform TreeHash normalization | Only if cross-platform hash equality becomes a requirement. | M |
+| CI action-version bumps | Keep `actions/*` current as they age (e.g. `actions/checkout` bumped v4→v5 in `bebb878`). Low priority, ongoing. | S |
 
 Effort key: S ≈ <1 day, M ≈ 1–3 days, L ≈ >3 days.
