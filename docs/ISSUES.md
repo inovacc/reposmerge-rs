@@ -8,7 +8,7 @@ These are documented, intentional limitations of the faithful port — not defec
 
 The Go original embeds `mantle/bootstrap.Base` and wires a whole framework runtime (viper config loading, otel observability, structured/redacting logger, daemon supervisor) in cobra's `PersistentPreRunE`. reposmerge's own commands never read that runtime, so per the porting rule "map a framework, don't reimplement it" it is **out of scope**. Consequences:
 
-- Only `--config/-c` (accepted but unused, for parity) and `--version` are reproduced.
+- Only `--config/-c` (accepted but unused, for parity) and `--version` are reproduced. **Decision (settled):** `--config` stays an intentional accepted-no-op — no config crate is pulled in — since no reposmerge command consumes a loaded config; revisit only if a real config need arises.
 - The mantle global flags `--env`, `--log-level`, `--verbose/-v`, `--quiet/-q`, `--log-format`, `--log-source`, `--no-redact`, `--otel*`, and `--daemon` are **intentionally omitted**.
 - `app.rs` reproduces only the inert config data of `DefaultBase()`; the struct is never read by any command.
 
