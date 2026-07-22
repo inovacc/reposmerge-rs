@@ -14,7 +14,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 5 | discover    | ☑ | ☑ | ☑ | PASS (13 tests total) | (see git) |
 | 6 | report      | ☑ | ☑ | ☑ | PASS (18 tests, byte-golden ✓) | (see git) |
 | 7 | safety      | ☑ | ☑ | ☑ | PASS (32 tests total, Win rollback ✓) | (see git) |
-| 8 | strategy    | ☐ | ☐ | ☐ | — | — |
+| 8 | strategy    | ☑ | ☑ | ☑ | PASS (38 tests total) | (see git) |
 | 9 | consolidate | ☐ | ☐ | ☐ | — | — |
 | 10| app         | ☐ | ☐ | ☐ | — | — |
 | 11| cmd (main)  | ☐ | ☐ | ☐ | — | — |

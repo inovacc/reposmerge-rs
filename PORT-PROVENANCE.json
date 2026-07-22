@@ -71,6 +71,15 @@
       ],
       "target_files": [ "src/safety.rs" ],
       "status": "verified"
+    },
+    "strategy": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/strategy/strategy.go", "sha256": "fc3edbb996149aa7866676c2b7215484a79ccd26b5e062199b6ae8f8a1a80cd0" },
+        { "path": "internal/strategy/strategy_test.go", "sha256": "9a2b05b7abd8a53915d5994aaf22c614cb85f350014988a76cbccd78424f40f8" }
+      ],
+      "target_files": [ "src/strategy.rs" ],
+      "status": "verified"
     }
   }
 }

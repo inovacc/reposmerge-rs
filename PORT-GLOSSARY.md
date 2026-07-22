@@ -78,6 +78,19 @@ in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
   (mode bytes differ unix vs windows) — deterministic per-platform, not cross-checked
   vs Go. `remove_all` helper = Go `os.RemoveAll` (NotFound → Ok).
 
+## strategy module (module 8) — shared types/decisions
+- Free fns: `decide(&Group, &str) -> Decision`, `choose_canonical(&[Copy]) -> (Copy, String)`,
+  `unreachable(&Copy, &Copy) -> Vec<String>` (pub). Private: `label`, `reason_for`,
+  `machine_rank`, `path_join`.
+- **`path_join`** = Go `path.Join` (forward-slash `/`, NEVER `std::path`/backslash,
+  even on Windows). For the strategy inputs a plain `parts.join("/")` is equivalent
+  to `path.Join`+`Clean` (no `.`/`..`/empty segments). dest keys stay
+  `canonical/<owner>/<repo>` and `_quarantine/<repo>/<label>` cross-platform.
+- Deps: none added (std only; reuses `crate::model`, `crate::discover::source_disc`).
+- Reason strings verbatim: `unreachable-commits` / `uncommitted-changes` /
+  `untracked-files` / `stashed-changes`. Canonical reason:
+  `highest richness score; machine=<m>`.
+
 ## JSON / serialization parity (report module) — CRITICAL
 - Model structs carry **no `json:` tags**, so Go marshals exported fields with
   their **exact PascalCase** names: `Path`, `Root`, `Machine`, `Owner`,
