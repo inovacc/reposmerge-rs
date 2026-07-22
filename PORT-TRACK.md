@@ -15,7 +15,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 6 | report      | ☑ | ☑ | ☑ | PASS (18 tests, byte-golden ✓) | (see git) |
 | 7 | safety      | ☑ | ☑ | ☑ | PASS (32 tests total, Win rollback ✓) | (see git) |
 | 8 | strategy    | ☑ | ☑ | ☑ | PASS (38 tests total) | (see git) |
-| 9 | consolidate | ☐ | ☐ | ☐ | — | — |
+| 9 | consolidate | ☑ | ☑ | ☑ | PASS (49 tests total, real-git ✓) | (see git) |
 | 10| app         | ☐ | ☐ | ☐ | — | — |
 | 11| cmd (main)  | ☐ | ☐ | ☐ | — | — |
 |  + | e2e (tests/) | ☐ | ☐ | ☐ | — | — |
@@ -230,6 +230,51 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   (fail→green: module was gated behind `// pub mod safety;`), `cargo build`,
   verify Windows test 7 on Windows, fill provenance sha256 (`PENDING-EXEC`), set
   row 7 verified, commit.
+
+## consolidate (module 9) — orchestration core
+- Dependencies added: **none** (std only: `std::collections::HashSet`, `std::fmt`).
+  Consumes `crate::gitx::{Runner, GitError, Fake}`, `crate::model::{Plan, ApplyResult,
+  ...}`, `crate::safety::{copy_tree_atomic, tree_hash}`.
+- Go `log/slog` info logging DROPPED entirely (side-effect only, untested; adding a
+  logging crate would be an unjustified dep). Go `context.Context` DROPPED (glossary
+  contract).
+- Public API:
+  - `pub static DEFAULT_EXCLUDES: &[&str]` (order preserved from Go DefaultExcludes)
+    + `pub fn default_excludes() -> Vec<String>`.
+  - `pub struct Options { dest: String, dry_run: bool, include_generated: bool,
+    exclude_dirs: Option<Vec<String>> }` derives `Default`. `exclude_dirs` is
+    `Option` to model Go's nil-vs-non-nil slice: `excludes()` → `vec![]` if
+    include_generated; `Some(v)` → `v.clone()` (even Some(empty) = Go non-nil empty);
+    `None` → DEFAULT_EXCLUDES.
+  - `pub enum Error { Io(std::io::Error), Git(GitError) }` (`From` both; `Display`/
+    `source` chain). Chosen over `Box<dyn Error>` for a typed, faithful wrap.
+  - `pub fn apply(r: &dyn Runner, p: &Plan, opts: &Options) -> Result<ApplyResult, Error>`
+    (Go `Apply`, ctx dropped).
+  - Private: `canonical_excludes` (appends `_quarantine`), `already_consolidated`,
+    `wrap`/`wrap_io` (Go `fmt.Errorf("<prefix>: %w")` message reproduction).
+- FAITHFUL details: dest-collision disambiguation is pure string append
+  `format!("{dest}-{suffix}")` on the OS-separator path string (suffix = first-7 of
+  root_commits[0] when len>=7 else machine); `seen` HashSet guard; union-remote dedup
+  loop `while used.contains(&name) { name = format!("{}-{}", u.name, i); i+=1 }`;
+  `remote remove` + per-branch `branch --force` ignore errors (idempotent); `remote
+  add`/`fetch` propagate wrapped errors. canonical hash excludes `_quarantine` so a
+  nested quarantine copy doesn't defeat idempotency.
+- PARITY concerns (for conductor to verify):
+  1. Error-message wrapping: `wrap`/`wrap_io` prepend `<prefix>: ` to the inner
+     cause. For GitError this prepends to `.cause` (keeps args/dir/stderr) so
+     `Display` reads `git <args> (in <dir>): <prefix>: <cause>: <stderr>`. Go wraps
+     the whole error: `<prefix>: git <args>...`. Only tested via `is_err()` (test 6),
+     so no assertion depends on the exact string — but note the ordering divergence.
+  2. Path-string disambiguation is byte-identical to Go (append on the same path
+     string built with the OS separator).
+  3. Union dedup loop replicated exactly (test 1 asserts unioned==2 for duplicate
+     names; not-exercised beyond the first rename since dry-run).
+  4. Test 11 (`test_apply_is_idempotent_on_second_run`) shells out to real `git` —
+     always runs (Go gates it behind `-short`); conductor MUST have `git` on PATH.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green: module was gated behind `// pub mod consolidate;`), `cargo build`,
+  ensure `git` on PATH for test 11, fill provenance sha256 (`PENDING-EXEC`), set
+  row 9 verified, commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.

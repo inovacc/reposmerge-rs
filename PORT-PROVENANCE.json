@@ -80,6 +80,15 @@
       ],
       "target_files": [ "src/strategy.rs" ],
       "status": "verified"
+    },
+    "consolidate": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/consolidate/consolidate.go", "sha256": "9280407eeab5e3a90014ef034b7d139c8331be6518f33c7346a65bf9c06cb7c0" },
+        { "path": "internal/consolidate/consolidate_test.go", "sha256": "23a3004cb9dbde3b664f70fc595fe8889047cd49af5f0c0f2706c102526bf777" }
+      ],
+      "target_files": [ "src/consolidate.rs" ],
+      "status": "verified"
     }
   }
 }

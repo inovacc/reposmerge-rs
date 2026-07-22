@@ -91,6 +91,21 @@ in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
   `untracked-files` / `stashed-changes`. Canonical reason:
   `highest richness score; machine=<m>`.
 
+## consolidate module (module 9) — shared types/decisions
+- `consolidate::DEFAULT_EXCLUDES: &[&str]` (Go DefaultExcludes, order preserved) +
+  `consolidate::default_excludes() -> Vec<String>`.
+- `consolidate::Options { dest, dry_run, include_generated, exclude_dirs: Option<Vec<String>> }`
+  derives `Default`. `Option<Vec<String>>` models Go's nil-vs-non-nil ExcludeDirs
+  slice (None → DefaultExcludes, Some(v) → v even if empty).
+- **Error-type decision:** `consolidate::Error { Io(std::io::Error), Git(gitx::GitError) }`
+  with `From` impls for both and a `Display`/`source` chain — chosen over
+  `Box<dyn Error>` so callers can match the failure source. `apply` returns
+  `Result<ApplyResult, consolidate::Error>`. Any downstream consumer (app module)
+  should adopt this or map it into its own aggregate.
+- `consolidate::apply(r: &dyn Runner, p: &Plan, opts: &Options) -> Result<ApplyResult, Error>`
+  (Go `Apply`, ctx + slog logging both DROPPED).
+- Deps: **none added** (std only).
+
 ## JSON / serialization parity (report module) — CRITICAL
 - Model structs carry **no `json:` tags**, so Go marshals exported fields with
   their **exact PascalCase** names: `Path`, `Root`, `Machine`, `Owner`,
