@@ -67,6 +67,17 @@ in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
 - `source_disc` token = first 6 hex chars of `sha256(ToSlash(Dir(path)))`; parent-dir
   extraction normalizes to '/', strips one trailing '/', cuts at last '/'.
 
+## safety module (module 7) — shared types/decisions
+- `safety::Violation { pub repo: String, pub machine: String, pub sha: String }`
+  (Go Repo/Machine/SHA → snake_case).
+- Free fns: `reachability_proof(&Plan) -> Vec<Violation>`,
+  `physical_reachability(&dyn Runner, &Plan) -> Vec<Violation>` (Go ctx DROPPED),
+  `copy_tree(src,dst,&[String],dry_run) -> io::Result<Vec<String>>` (returns skipped
+  paths), `copy_tree_atomic(...)` (same sig), `tree_hash(root,&[String]) -> io::Result<String>`.
+- Deps: none added (reuses sha2/hex/walkdir). TreeHash value is platform-dependent
+  (mode bytes differ unix vs windows) — deterministic per-platform, not cross-checked
+  vs Go. `remove_all` helper = Go `os.RemoveAll` (NotFound → Ok).
+
 ## JSON / serialization parity (report module) — CRITICAL
 - Model structs carry **no `json:` tags**, so Go marshals exported fields with
   their **exact PascalCase** names: `Path`, `Root`, `Machine`, `Owner`,

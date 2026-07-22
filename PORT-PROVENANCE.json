@@ -62,6 +62,15 @@
       ],
       "target_files": [ "src/report.rs", "src/model.rs", "tests/golden/plan.json", "tests/golden/divergence.md", "tests/golden/MANIFEST.md" ],
       "status": "verified"
+    },
+    "safety": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/safety/safety.go", "sha256": "97899e73052b7f3dbd3bf5253cb1507e94c733bb408c1af8127ad10850008411" },
+        { "path": "internal/safety/safety_test.go", "sha256": "2077bf5f88669294d351eac7467a848963a41944f826d01d39d03093bff1d035" }
+      ],
+      "target_files": [ "src/safety.rs" ],
+      "status": "verified"
     }
   }
 }

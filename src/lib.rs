@@ -10,7 +10,7 @@ pub mod fingerprint;
 pub mod group;
 pub mod discover;
 pub mod report;
-// pub mod safety;
+pub mod safety;
 // pub mod strategy;
 // pub mod consolidate;
 // pub mod app;

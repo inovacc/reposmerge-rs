@@ -13,7 +13,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 4 | group       | ☑ | ☑ | ☑ | PASS (6 tests total) | (see git) |
 | 5 | discover    | ☑ | ☑ | ☑ | PASS (13 tests total) | (see git) |
 | 6 | report      | ☑ | ☑ | ☑ | PASS (18 tests, byte-golden ✓) | (see git) |
-| 7 | safety      | ☐ | ☐ | ☐ | — | — |
+| 7 | safety      | ☑ | ☑ | ☑ | PASS (32 tests total, Win rollback ✓) | (see git) |
 | 8 | strategy    | ☐ | ☐ | ☐ | — | — |
 | 9 | consolidate | ☐ | ☐ | ☐ | — | — |
 | 10| app         | ☐ | ☐ | ☐ | — | — |
@@ -183,6 +183,53 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   (fail→green: `report` was gated behind `// pub mod report;`), `cargo build`,
   iterate on any golden byte-diff, fill provenance sha256 (`PENDING-EXEC`), set
   row 6 verified, commit.
+
+## safety (module 7) — high FS complexity
+- Dependencies added: **none** (reuses `sha2`, `hex`, `walkdir`; std `fs`/`io`;
+  consumes `crate::model::{Plan, StrategyKind, ...}` and `crate::gitx::Runner`).
+- Public API:
+  - `struct Violation { pub repo: String, pub machine: String, pub sha: String }`
+    (Go Repo/Machine/SHA → snake_case per glossary).
+  - `reachability_proof(p: &Plan) -> Vec<Violation>` (Go `ReachabilityProof`).
+  - `physical_reachability(r: &dyn Runner, p: &Plan) -> Vec<Violation>` — Go
+    `PhysicalReachability`, `context.Context` DROPPED. Git spec `<sha>^{commit}`;
+    Fake match key `cat-file -e <sha>^{commit}`.
+  - `copy_tree(src, dst, skip: &[String], dry_run) -> io::Result<Vec<String>>`.
+  - `copy_tree_atomic(src, dst, skip, dry_run) -> io::Result<Vec<String>>`.
+  - `tree_hash(root, skip: &[String]) -> io::Result<String>`.
+  - private helpers: `file_sha256`, `copy_file`, `remove_all`, `file_mode`, `to_slash`.
+- FAITHFUL walk: `filepath.Walk` → `walkdir::WalkDir::into_iter()` with
+  `skip_current_dir()` == `filepath.SkipDir`. Per-entry walk errors append the
+  entry path to `skipped` and continue (do NOT abort) — incl. the nonexistent-src
+  case: walkdir yields one Err whose `.path()==src`, so `copy_tree(missing)` →
+  `Ok(vec![src])` (matching Go's info==nil callback), and the atomic error surfaces
+  later from the dst/rename steps. `rel=="."` reproduced via `entry.depth()==0`.
+- `remove_all` mirrors Go `os.RemoveAll`: NotFound → Ok(()); else remove file/dir.
+- TreeHash framing: `write!` into a `Sha256` (Digest impls io::Write) the exact
+  bytes `path:{rel}\x00mode:{mode:o}\x00sha256:{hex}\x00`, entries sorted by rel
+  (byte order). Always skips `.git` + `skip` dirs.
+- MODE PARITY scheme (documented): `#[cfg(unix)]` uses
+  `permissions().mode()` (full st_mode-ish, like Go incl. bits);
+  `#[cfg(windows)]` synthesizes 0o444 (readonly) / 0o666 — deterministic per file
+  so identical trees hash equal. Absolute TreeHash value is platform-dependent and
+  NOT cross-checked vs Go (already true in Go itself).
+- Test 7 (rollback) is WINDOWS-ONLY (`if !cfg!(windows) { return; }`, mirrors Go's
+  `runtime.GOOS` skip). Forces `remove_dir_all(dst)` to fail by holding a handle on
+  `dst/locked.txt` opened via `std::os::windows::fs::OpenOptionsExt::share_mode(3)`
+  = FILE_SHARE_READ|FILE_SHARE_WRITE, NO FILE_SHARE_DELETE. Handle kept alive
+  (dropped after assertions) so the sharing violation persists through the call.
+- PARITY concerns:
+  - Windows `std::fs::remove_dir_all` vs Go `os.RemoveAll`: test 7 depends on it
+    FAILING when a child is held open without delete-sharing. If Rust's impl
+    succeeds where Go fails, test 7's rollback assertions won't be exercised
+    (test-driven divergence to verify on the conductor's Windows run).
+  - mode octal bytes are NOT cross-language identical (Go FileMode vs Rust
+    st_mode); only same-platform determinism is required and satisfied.
+  - walkdir skip_current_dir vs filepath.SkipDir: matches for tested cases.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green: module was gated behind `// pub mod safety;`), `cargo build`,
+  verify Windows test 7 on Windows, fill provenance sha256 (`PENDING-EXEC`), set
+  row 7 verified, commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.
