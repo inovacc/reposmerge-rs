@@ -553,58 +553,54 @@ mod tests {
         );
     }
 
+    // WINDOWS-ONLY: relies on Windows delete-sharing semantics to force
+    // remove_dir_all(dst) to fail. Compile-time gated to Windows (equivalent to
+    // Go's `runtime.GOOS != "windows"` skip), so it doesn't exist on other OSes.
+    #[cfg(windows)]
     #[test]
     fn copy_tree_atomic_rollback_on_failure() {
-        // WINDOWS-ONLY: relies on Windows delete-sharing semantics to force
-        // remove_dir_all(dst) to fail (Go's runtime.GOOS != "windows" skip).
-        if !cfg!(windows) {
-            return;
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::OpenOptionsExt;
+        use std::os::windows::fs::OpenOptionsExt;
 
-            let src = unique_dir("ctar-src");
-            write_file(&src.join("newfile.txt"), "from-src");
+        let src = unique_dir("ctar-src");
+        write_file(&src.join("newfile.txt"), "from-src");
 
-            let dst = unique_dir("ctar-dstparent").join("out");
-            fs::create_dir_all(&dst).unwrap();
-            let locked_path = dst.join("locked.txt");
-            write_file(&locked_path, "original");
+        let dst = unique_dir("ctar-dstparent").join("out");
+        fs::create_dir_all(&dst).unwrap();
+        let locked_path = dst.join("locked.txt");
+        write_file(&locked_path, "original");
 
-            // Open a handle on locked.txt that PREVENTS deletion:
-            // FILE_SHARE_READ|FILE_SHARE_WRITE (0x1|0x2=3), NO FILE_SHARE_DELETE.
-            let handle = fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .share_mode(3)
-                .open(&locked_path)
-                .unwrap();
+        // Open a handle on locked.txt that PREVENTS deletion:
+        // FILE_SHARE_READ|FILE_SHARE_WRITE (0x1|0x2=3), NO FILE_SHARE_DELETE.
+        let handle = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(3)
+            .open(&locked_path)
+            .unwrap();
 
-            let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
+        let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
 
-            let res = copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false);
-            assert!(
-                res.is_err(),
-                "expected CopyTreeAtomic to fail when dst cannot be cleared"
-            );
+        let res = copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false);
+        assert!(
+            res.is_err(),
+            "expected CopyTreeAtomic to fail when dst cannot be cleared"
+        );
 
-            assert!(
-                !Path::new(&tmp).exists(),
-                "temp sibling should have been removed by rollback after populated copy"
-            );
-            assert!(dst.exists(), "dst should still exist after failed swap");
-            assert!(
-                !dst.join("newfile.txt").exists(),
-                "dst should not contain newly-copied src files: no partial swap"
-            );
-            assert!(
-                locked_path.exists(),
-                "dst's original file should be untouched"
-            );
+        assert!(
+            !Path::new(&tmp).exists(),
+            "temp sibling should have been removed by rollback after populated copy"
+        );
+        assert!(dst.exists(), "dst should still exist after failed swap");
+        assert!(
+            !dst.join("newfile.txt").exists(),
+            "dst should not contain newly-copied src files: no partial swap"
+        );
+        assert!(
+            locked_path.exists(),
+            "dst's original file should be untouched"
+        );
 
-            drop(handle); // keep handle alive until after assertions
-        }
+        drop(handle); // keep handle alive until after assertions
     }
 
     #[test]
