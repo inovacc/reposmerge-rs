@@ -9,7 +9,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 |---|--------|:---:|:---:|:---:|--------|--------|
 | 1 | model       | ☑ | ☑ | ☑ | PASS (1 test) | (see git) |
 | 2 | gitx        | ☑ | ☑ | ☑ | PASS (2 tests total) | (see git) |
-| 3 | fingerprint | ☐ | ☐ | ☐ | — | — |
+| 3 | fingerprint | ☑ | ☑ | ☑ | PASS (3 tests total) | (see git) |
 | 4 | group       | ☐ | ☐ | ☐ | — | — |
 | 5 | discover    | ☐ | ☐ | ☐ | — | — |
 | 6 | report      | ☐ | ☐ | ☐ | — | — |
@@ -42,6 +42,37 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   (fail→green — though the single Fake test may pass immediately since it needs
   no ExecRunner; still confirm build), `cargo build`, fill provenance sha256,
   commit.
+
+## fingerprint (module 3)
+- Dependencies added: **none** (uses existing `chrono` for RFC3339 parse, plus
+  `crate::gitx`/`crate::model`).
+- `compute(r: &dyn Runner, c: &mut Copy) -> Result<(), GitError>` — Go `Compute`
+  with `context.Context` DROPPED. Fills `c.fp`. Helpers `safe` (=
+  `Result::unwrap_or_default`) and `lines` (trim whole string; "" → empty vec;
+  else split on '\n').
+- Faithful details preserved: `head` keeps "" on error (`unwrap_or_default`);
+  `safe` swallows git errors → "" → empty lines; `root_commits`/`all_commits`
+  sorted with `Vec::sort` (byte/lexicographic = Go `sort.Strings`); branch split
+  on FIRST ' ' (`split_once`), skip lines with no space; status "??" prefix →
+  untracked, else non-blank → dirty; ahead/behind split on FIRST '\t', atoi
+  failure → 0 (`parse().unwrap_or(0)`), behind=left/ahead=right; last_commit via
+  `DateTime::parse_from_rfc3339(...).with_timezone(&Utc)`, parse error leaves
+  zero-time.
+- PARITY concerns:
+  - RFC3339 tz: Go `time.Parse(RFC3339, "…-03:00")` keeps the offset instant;
+    Rust converts to UTC (`with_timezone(&Utc)`). The instant is identical; only
+    the stored zone differs. Since `Fingerprint::last_commit` is `DateTime<Utc>`
+    (per model port) this is the intended representation; JSON RFC3339Nano output
+    will render in UTC (e.g. `2026-06-20T13:00:00Z`) vs Go which would re-emit the
+    original offset. VERIFY against a Go golden at `report`; may need offset
+    preservation if byte-parity required.
+  - `sort()` on `Vec<String>` is byte-lexicographic = Go `sort.Strings`. OK.
+  - atoi edge: Go `strconv.Atoi` accepts leading/trailing per `TrimSpace`; Rust
+    `.trim().parse::<i64>()` matches (both reject "+"/non-digit → 0). OK.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green — note the single Fake test likely passes on first compile since it
+  needs no ExecRunner; confirm build + the fail state came only from the missing
+  module), `cargo build`, fill provenance sha256, commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.

@@ -22,6 +22,15 @@
       ],
       "target_files": [ "src/gitx.rs" ],
       "status": "verified"
+    },
+    "fingerprint": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/fingerprint/fingerprint.go", "sha256": "a4c5365ce96c480b5ec53a599e25e07c2de2e210b45ff38e5bd49ec6efe56511" },
+        { "path": "internal/fingerprint/fingerprint_test.go", "sha256": "e4956d0800fdb21e9d5883a6f86ff849fd47a22b13e51f296ebfec54a7ede8fc" }
+      ],
+      "target_files": [ "src/fingerprint.rs" ],
+      "status": "verified"
     }
   }
 }
