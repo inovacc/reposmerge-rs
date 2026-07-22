@@ -1,0 +1,22 @@
+[package]
+name = "reposmerge"
+version = "1.0.0"
+edition = "2021"
+description = "Consolidate duplicated/scattered git repo copies into canonical repos (Rust port of inovacc/reposmerge)"
+license = "BSD-3-Clause"
+
+[lib]
+name = "reposmerge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "reposmerge"
+path = "src/main.rs"
+
+# Dependencies are added lazily, module-by-module, as the port forces them
+# (std-first). Each addition is logged in PORT-TRACK.md with its justification.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]

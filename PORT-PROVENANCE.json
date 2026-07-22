@@ -1,0 +1,17 @@
+{
+  "source": "github.com/inovacc/reposmerge",
+  "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+  "pair": "go2rust",
+  "hash": "sha256",
+  "modules": {
+    "model": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/model/model.go", "sha256": "5eb0691ca86f4bc6291ad56fc0af6a0d22c67dad60195f0eef92470cb9a041f8" },
+        { "path": "internal/model/model_test.go", "sha256": "c177711d73c58ce00055ac735868431eaa6fa90f72ba3703a55250d28e904a44" }
+      ],
+      "target_files": [ "src/model.rs" ],
+      "status": "verified"
+    }
+  }
+}
