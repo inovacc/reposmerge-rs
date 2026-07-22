@@ -28,8 +28,13 @@ pub struct Violation {
 pub fn reachability_proof(p: &Plan) -> Vec<Violation> {
     let mut vio = Vec::new();
     for d in &p.decisions {
-        let canon: std::collections::HashSet<&str> =
-            d.canonical.fp.all_commits.iter().map(|s| s.as_str()).collect();
+        let canon: std::collections::HashSet<&str> = d
+            .canonical
+            .fp
+            .all_commits
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
         let quarantined: std::collections::HashSet<&str> =
             d.quarantine.iter().map(|q| q.copy.path.as_str()).collect();
         // Strategy B folds all copies into canonical via union remotes -> all reachable.
@@ -89,12 +94,7 @@ pub fn physical_reachability(r: &dyn Runner, p: &Plan) -> Vec<Violation> {
 ///
 /// Faithful to Go `filepath.Walk`: a walk error for an entry appends the entry
 /// path to `skipped` (and prunes the subtree for a dir); it does NOT abort.
-pub fn copy_tree(
-    src: &str,
-    dst: &str,
-    skip: &[String],
-    dry_run: bool,
-) -> io::Result<Vec<String>> {
+pub fn copy_tree(src: &str, dst: &str, skip: &[String], dry_run: bool) -> io::Result<Vec<String>> {
     let skip_set: std::collections::HashSet<&str> = skip.iter().map(|s| s.as_str()).collect();
     let src_path = Path::new(src);
     let dst_path = Path::new(dst);
@@ -322,10 +322,7 @@ fn copy_file(src: &Path, dst: &Path, mode: u32) -> io::Result<()> {
     {
         let _ = mode; // Windows: mode largely ignored (Go behaves likewise)
     }
-    let mut out_f = match opts.open(dst) {
-        Ok(f) => f,
-        Err(e) => return Err(e),
-    };
+    let mut out_f = opts.open(dst)?;
     if let Err(e) = io::copy(&mut in_f, &mut out_f) {
         drop(out_f);
         let _ = fs::remove_file(dst); // don't leave a partial file behind
@@ -353,8 +350,10 @@ fn remove_all(path: &Path) -> io::Result<()> {
 }
 
 /// Portable, deterministic per-file mode (glossary MODE PARITY scheme).
+///
 /// - unix: full st_mode-ish via permissions().mode() (like Go incl. bits).
 /// - windows: synthesize a Go-like mode: 0o444 if readonly else 0o666.
+///
 /// Cross-language mode bytes are NOT required to match Go; only same-platform
 /// determinism (identical trees hash equal).
 fn file_mode(meta: &Option<fs::Metadata>) -> u32 {
@@ -460,7 +459,10 @@ mod tests {
             ..Default::default()
         };
         let v = reachability_proof(&p);
-        assert!(v.len() == 1 && v[0].sha == "z", "expected violation for z, got {v:?}");
+        assert!(
+            v.len() == 1 && v[0].sha == "z",
+            "expected violation for z, got {v:?}"
+        );
     }
 
     #[test]
@@ -508,7 +510,10 @@ mod tests {
             ..Default::default()
         };
         let v = reachability_proof(&p);
-        assert!(v.is_empty(), "quarantined copy should preserve 'z'; got {v:?}");
+        assert!(
+            v.is_empty(),
+            "quarantined copy should preserve 'z'; got {v:?}"
+        );
     }
 
     #[test]
@@ -522,9 +527,15 @@ mod tests {
         copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false).unwrap();
 
         assert!(dst.join("main.go").exists(), "main.go not copied");
-        assert!(dst.join("sub").join("f.txt").exists(), "sub/f.txt not copied");
+        assert!(
+            dst.join("sub").join("f.txt").exists(),
+            "sub/f.txt not copied"
+        );
         let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
-        assert!(!Path::new(&tmp).exists(), "leftover temp dir sibling should not exist");
+        assert!(
+            !Path::new(&tmp).exists(),
+            "leftover temp dir sibling should not exist"
+        );
     }
 
     #[test]
@@ -572,9 +583,11 @@ mod tests {
 
             let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
 
-            let res =
-                copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false);
-            assert!(res.is_err(), "expected CopyTreeAtomic to fail when dst cannot be cleared");
+            let res = copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false);
+            assert!(
+                res.is_err(),
+                "expected CopyTreeAtomic to fail when dst cannot be cleared"
+            );
 
             assert!(
                 !Path::new(&tmp).exists(),
@@ -585,7 +598,10 @@ mod tests {
                 !dst.join("newfile.txt").exists(),
                 "dst should not contain newly-copied src files: no partial swap"
             );
-            assert!(locked_path.exists(), "dst's original file should be untouched");
+            assert!(
+                locked_path.exists(),
+                "dst's original file should be untouched"
+            );
 
             drop(handle); // keep handle alive until after assertions
         }
@@ -599,10 +615,16 @@ mod tests {
 
         let actions =
             copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], true).unwrap();
-        assert!(actions.is_empty(), "dry-run should report no skipped files, got {actions:?}");
+        assert!(
+            actions.is_empty(),
+            "dry-run should report no skipped files, got {actions:?}"
+        );
         assert!(!dst.exists(), "dry-run should not create dst");
         let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
-        assert!(!Path::new(&tmp).exists(), "dry-run should not create temp dir");
+        assert!(
+            !Path::new(&tmp).exists(),
+            "dry-run should not create temp dir"
+        );
     }
 
     #[test]
@@ -614,7 +636,10 @@ mod tests {
 
         let h1 = tree_hash(dir.to_str().unwrap(), &[]).unwrap();
         let h2 = tree_hash(dir.to_str().unwrap(), &[]).unwrap();
-        assert!(!h1.is_empty() && h1 == h2, "expected stable non-empty hash, got {h1:?} vs {h2:?}");
+        assert!(
+            !h1.is_empty() && h1 == h2,
+            "expected stable non-empty hash, got {h1:?} vs {h2:?}"
+        );
     }
 
     #[test]
@@ -626,7 +651,10 @@ mod tests {
 
         let ha = tree_hash(dir_a.to_str().unwrap(), &[]).unwrap();
         let hb = tree_hash(dir_b.to_str().unwrap(), &[]).unwrap();
-        assert!(!ha.is_empty() && ha == hb, "expected equal hashes, got {ha:?} vs {hb:?}");
+        assert!(
+            !ha.is_empty() && ha == hb,
+            "expected equal hashes, got {ha:?} vs {hb:?}"
+        );
     }
 
     #[test]
@@ -648,8 +676,14 @@ mod tests {
 
         let dir_b = unique_dir("thu-b");
         write_file(&dir_b.join("a.txt"), "hello");
-        write_file(&dir_b.join(".git").join("HEAD"), "ref: refs/heads/DIFFERENT");
-        write_file(&dir_b.join("node_modules").join("junk.js"), "totally different");
+        write_file(
+            &dir_b.join(".git").join("HEAD"),
+            "ref: refs/heads/DIFFERENT",
+        );
+        write_file(
+            &dir_b.join("node_modules").join("junk.js"),
+            "totally different",
+        );
 
         let ha = tree_hash(dir_a.to_str().unwrap(), &["node_modules".to_string()]).unwrap();
         let hb = tree_hash(dir_b.to_str().unwrap(), &["node_modules".to_string()]).unwrap();
@@ -688,6 +722,9 @@ mod tests {
             ..Default::default()
         };
         let v = physical_reachability(&f, &p);
-        assert!(v.len() == 1 && v[0].sha == "z", "expected physical violation for z, got {v:?}");
+        assert!(
+            v.len() == 1 && v[0].sha == "z",
+            "expected physical violation for z, got {v:?}"
+        );
     }
 }

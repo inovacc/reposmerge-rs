@@ -163,7 +163,8 @@ pub fn choose_canonical(copies: &[Copy]) -> (Copy, String) {
     let mut best = &copies[0];
     for c in &copies[1..] {
         if c.fp.score() > best.fp.score()
-            || (c.fp.score() == best.fp.score() && machine_rank(&c.machine) < machine_rank(&best.machine))
+            || (c.fp.score() == best.fp.score()
+                && machine_rank(&c.machine) < machine_rank(&best.machine))
         {
             best = c;
         }
@@ -251,7 +252,7 @@ mod tests {
             remote_url: "github.com/inovacc/omni".to_string(),
             copies: vec![
                 mk("live", 3, &["a", "b", "c"]),
-                mk("acer", 0, &["a", "b"]),      // strict subset -> redundant
+                mk("acer", 0, &["a", "b"]), // strict subset -> redundant
                 mk("dell", 0, &["a", "b", "z"]), // has unique 'z' -> quarantine
             ],
             ..Default::default()
@@ -336,7 +337,10 @@ mod tests {
         assert_eq!(d.quarantine.len(), 2);
         let dest1 = &d.quarantine[0].dest_path;
         let dest2 = &d.quarantine[1].dest_path;
-        assert_ne!(dest1, dest2, "colliding acer quarantine DestPaths must be distinct");
+        assert_ne!(
+            dest1, dest2,
+            "colliding acer quarantine DestPaths must be distinct"
+        );
         const PREFIX: &str = "_quarantine/omni/acer-";
         for dest in [dest1, dest2] {
             assert!(
@@ -361,7 +365,10 @@ mod tests {
         assert_eq!(d.union_remotes.len(), 2);
         let name1 = &d.union_remotes[0].name;
         let name2 = &d.union_remotes[1].name;
-        assert_ne!(name1, name2, "colliding acer union remote names must be distinct");
+        assert_ne!(
+            name1, name2,
+            "colliding acer union remote names must be distinct"
+        );
         const PREFIX: &str = "consolidate-acer-";
         for name in [name1, name2] {
             assert!(

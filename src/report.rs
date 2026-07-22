@@ -55,8 +55,16 @@ fn write_csv(path: &Path, copies: &[model::Copy]) -> io::Result<()> {
         .from_path(path)
         .map_err(csv_io)?;
     w.write_record([
-        "owner", "repo", "machine", "remote", "head", "commits", "ahead", "dirty",
-        "untracked", "path",
+        "owner",
+        "repo",
+        "machine",
+        "remote",
+        "head",
+        "commits",
+        "ahead",
+        "dirty",
+        "untracked",
+        "path",
     ])
     .map_err(csv_io)?;
     for c in copies {
@@ -79,7 +87,7 @@ fn write_csv(path: &Path, copies: &[model::Copy]) -> io::Result<()> {
 }
 
 fn csv_io(e: csv::Error) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, e)
+    io::Error::other(e)
 }
 
 /// WritePlan emits plan.json and a human divergence.md.
@@ -148,7 +156,10 @@ pub fn write_checksums(dir: &Path, dest: &Path) -> io::Result<()> {
     }
 
     let mut rels: Vec<String> = Vec::new();
-    for entry in walkdir::WalkDir::new(dest).into_iter().filter_map(|e| e.ok()) {
+    for entry in walkdir::WalkDir::new(dest)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         if entry.file_type().is_dir() {
             continue;
         }
@@ -394,7 +405,7 @@ mod tests {
                                 fp: model::Fingerprint {
                                     head: "aaaaaaa1111111111111111111111111111111".to_string(),
                                     all_commits: vec![
-                                        "aaaaaaa1111111111111111111111111111111".to_string(),
+                                        "aaaaaaa1111111111111111111111111111111".to_string()
                                     ],
                                     commit_count: 1,
                                     ahead: 2,
@@ -444,7 +455,7 @@ mod tests {
                         dest_path: "canonical/inovacc/omni/_quarantine/acer".to_string(),
                         reason: "dirty working tree with unreachable commits".to_string(),
                         unreachable_commits: vec![
-                            "deadbeef1111111111111111111111111111111".to_string(),
+                            "deadbeef1111111111111111111111111111111".to_string()
                         ],
                     }],
                     redundant: vec!["repos/root3/inovacc/omni".to_string()],
@@ -466,7 +477,7 @@ mod tests {
                                 repo_name: "loom".to_string(),
                                 fp: model::Fingerprint {
                                     root_commits: vec![
-                                        "root1234567890123456789012345678901234".to_string(),
+                                        "root1234567890123456789012345678901234".to_string()
                                     ],
                                     ..Default::default()
                                 },
@@ -480,7 +491,7 @@ mod tests {
                                 repo_name: "loom".to_string(),
                                 fp: model::Fingerprint {
                                     root_commits: vec![
-                                        "root1234567890123456789012345678901234".to_string(),
+                                        "root1234567890123456789012345678901234".to_string()
                                     ],
                                     ..Default::default()
                                 },

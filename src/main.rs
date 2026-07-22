@@ -110,14 +110,8 @@ fn default_workers() -> usize {
     let cpus = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1);
-    let mut n = cpus * 2;
-    if n > 16 {
-        n = 16;
-    }
-    if n < 1 {
-        n = 1;
-    }
-    n
+    // Go: NumCPU*2, then `if n>16 {16}; if n<1 {1}` — equivalent to clamp(1, 16).
+    (cpus * 2).clamp(1, 16)
 }
 
 fn run_scan(
@@ -143,7 +137,7 @@ fn run_scan(
     let n = in_scope.len();
     if n > 0 {
         let runner = new_runner();
-        let chunk = ((n + workers - 1) / workers).max(1);
+        let chunk = n.div_ceil(workers).max(1);
         std::thread::scope(|s| {
             for slice in in_scope.chunks_mut(chunk) {
                 let runner = &runner;
@@ -277,7 +271,8 @@ fn run_apply(
             res.skipped_files.len()
         );
     }
-    report::write_manifest(Path::new(&out), &p, &res).map_err(|e| format!("write manifest: {e}"))?;
+    report::write_manifest(Path::new(&out), &p, &res)
+        .map_err(|e| format!("write manifest: {e}"))?;
     if confirm {
         report::write_checksums(Path::new(&out), Path::new(&dest))
             .map_err(|e| format!("write checksums: {e}"))?;
@@ -337,6 +332,8 @@ fn main() {
 mod tests {
     use super::*;
     use clap::CommandFactory;
+    use reposmerge::model::{Copy, Decision, Fingerprint, Group, Plan, StrategyKind};
+    use std::fs;
 
     // Faithful port of Go TestSubcommandsRegistered.
     #[test]
@@ -344,10 +341,117 @@ mod tests {
         let cmd = Cli::command();
         let names: Vec<&str> = cmd.get_subcommands().map(|c| c.get_name()).collect();
         for want in ["scan", "plan", "apply", "verify"] {
-            assert!(
-                names.contains(&want),
-                "subcommand {want:?} not registered"
-            );
+            assert!(names.contains(&want), "subcommand {want:?} not registered");
         }
+    }
+
+    fn tmp(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("reposmerge-cli-{tag}"));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn write_plan_json(dir: &std::path::Path, p: &Plan) -> String {
+        report::write_plan(dir, p).unwrap();
+        dir.join("reports")
+            .join("plan.json")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn fp(commits: &[&str]) -> Fingerprint {
+        Fingerprint {
+            all_commits: commits.iter().map(|s| s.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    // run_verify OK path: a plan with no unaccounted commits verifies clean.
+    #[test]
+    fn run_verify_ok_when_no_loss() {
+        let dir = tmp("verify-ok");
+        let plan = Plan {
+            dest: "canonical".into(),
+            ..Default::default()
+        };
+        let plan_path = write_plan_json(&dir, &plan);
+        assert!(run_verify(plan_path, false).is_ok());
+    }
+
+    // run_verify loss path: a divergent copy with an unreachable commit fails.
+    #[test]
+    fn run_verify_fails_on_commit_loss() {
+        let dir = tmp("verify-loss");
+        let canon = Copy {
+            path: "/live".into(),
+            machine: "live".into(),
+            fp: fp(&["a"]),
+            ..Default::default()
+        };
+        let other = Copy {
+            path: "/acer".into(),
+            machine: "acer".into(),
+            fp: fp(&["a", "z"]), // 'z' unreachable in canonical
+            ..Default::default()
+        };
+        let plan = Plan {
+            decisions: vec![Decision {
+                strategy: StrategyKind::A,
+                group: Group {
+                    repo_name: "x".into(),
+                    copies: vec![canon.clone(), other],
+                    ..Default::default()
+                },
+                canonical: canon,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let plan_path = write_plan_json(&dir, &plan);
+        assert!(run_verify(plan_path, false).is_err());
+    }
+
+    // run_apply dry-run: reports a planned copy and writes nothing under dest.
+    #[test]
+    fn run_apply_dry_run_writes_nothing() {
+        let dir = tmp("apply-dry");
+        let src = dir.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(src.join("f.txt"), "x").unwrap();
+        let dest = dir.join("canonical");
+        let plan = Plan {
+            decisions: vec![Decision {
+                strategy: StrategyKind::A,
+                canonical: Copy {
+                    path: src.to_string_lossy().into_owned(),
+                    machine: "live".into(),
+                    ..Default::default()
+                },
+                dest_path: dest
+                    .join("inovacc")
+                    .join("omni")
+                    .to_string_lossy()
+                    .into_owned(),
+                group: Group {
+                    repo_name: "omni".into(),
+                    owner: "inovacc".into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let plan_path = write_plan_json(&dir, &plan);
+        // confirm=false => dry-run: Ok, and dest/ must not be created.
+        run_apply(
+            plan_path,
+            dest.to_string_lossy().into_owned(),
+            dir.to_string_lossy().into_owned(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert!(!dest.exists(), "dry-run must not create dest");
     }
 }

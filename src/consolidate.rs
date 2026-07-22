@@ -186,20 +186,24 @@ pub fn apply(r: &dyn Runner, p: &Plan, opts: &Options) -> Result<ApplyResult, Er
             // idempotent on re-run: ignore result
             let _ = r.run(&dest, &["remote", "remove", &name]);
             r.run(&dest, &["remote", "add", &name, &u.path])
-                .map_err(|e| Error::Git(GitError {
-                    args: e.args.clone(),
-                    dir: e.dir.clone(),
-                    cause: format!("add union remote {}: {}", name, e.cause),
-                    stderr: e.stderr.clone(),
-                }))?;
+                .map_err(|e| {
+                    Error::Git(GitError {
+                        args: e.args.clone(),
+                        dir: e.dir.clone(),
+                        cause: format!("add union remote {}: {}", name, e.cause),
+                        stderr: e.stderr.clone(),
+                    })
+                })?;
             let refspec = format!("+refs/heads/*:refs/remotes/{}/*", name);
             r.run(&dest, &["fetch", &name, &refspec, "--tags"])
-                .map_err(|e| Error::Git(GitError {
-                    args: e.args.clone(),
-                    dir: e.dir.clone(),
-                    cause: format!("fetch union remote {}: {}", name, e.cause),
-                    stderr: e.stderr.clone(),
-                }))?;
+                .map_err(|e| {
+                    Error::Git(GitError {
+                        args: e.args.clone(),
+                        dir: e.dir.clone(),
+                        cause: format!("fetch union remote {}: {}", name, e.cause),
+                        stderr: e.stderr.clone(),
+                    })
+                })?;
             for b in &u.branches {
                 let local = format!("consolidate/{}/{}", name, b);
                 let remote = format!("{}/{}", name, b);
@@ -228,10 +232,8 @@ fn canonical_excludes(ex: &[String]) -> Vec<String> {
 /// `tree_hash`, same exclude list). A nonexistent `dst` never counts as
 /// "already consolidated" (`tree_hash` returns "" for a missing root).
 fn already_consolidated(src: &str, dst: &str, ex: &[String]) -> Result<bool, Error> {
-    let src_hash =
-        tree_hash(src, ex).map_err(|e| wrap_io(format!("hash src {}", src), e))?;
-    let dst_hash =
-        tree_hash(dst, ex).map_err(|e| wrap_io(format!("hash dst {}", dst), e))?;
+    let src_hash = tree_hash(src, ex).map_err(|e| wrap_io(format!("hash src {}", src), e))?;
+    let dst_hash = tree_hash(dst, ex).map_err(|e| wrap_io(format!("hash dst {}", dst), e))?;
     Ok(!dst_hash.is_empty() && src_hash == dst_hash)
 }
 
@@ -261,7 +263,9 @@ fn wrap_io(prefix: String, e: std::io::Error) -> Error {
 mod tests {
     use super::*;
     use crate::gitx::Fake;
-    use crate::model::{Copy, Decision, Fingerprint, Group, QuarantineItem, StrategyKind, UnionRemote};
+    use crate::model::{
+        Copy, Decision, Fingerprint, Group, QuarantineItem, StrategyKind, UnionRemote,
+    };
     use std::fs;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -822,6 +826,9 @@ mod tests {
         assert!(res2.skipped >= 1, "second run Skipped>=1");
         assert_eq!(res2.copied, 0, "second run Copied=0");
         let after = fs::read(join(&dp, &["f.txt"])).unwrap();
-        assert_eq!(before, after, "dest contents changed on idempotent second run");
+        assert_eq!(
+            before, after,
+            "dest contents changed on idempotent second run"
+        );
     }
 }

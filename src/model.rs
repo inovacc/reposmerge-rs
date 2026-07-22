@@ -235,10 +235,11 @@ impl Fingerprint {
 
 /// StrategyKind enumerates reconciliation strategies.
 /// Serializes to the exact Go string values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum StrategyKind {
     /// remote-backed
     #[serde(rename = "A-richest-quarantine")]
+    #[default]
     A,
     /// local-only, shared lineage
     #[serde(rename = "B-union-branches")]
@@ -246,12 +247,6 @@ pub enum StrategyKind {
     /// collision / unclassified
     #[serde(rename = "C-snapshot")]
     C,
-}
-
-impl Default for StrategyKind {
-    fn default() -> Self {
-        StrategyKind::A
-    }
 }
 
 /// Group is a set of Copies that are the same logical repo.

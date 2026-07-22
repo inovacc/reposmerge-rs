@@ -187,8 +187,7 @@ pub fn discover(
     exclude_dirs: &[String],
     include_nested: bool,
 ) -> Result<(Vec<Copy>, Vec<Copy>), GitError> {
-    let skip: std::collections::HashSet<&str> =
-        exclude_dirs.iter().map(|s| s.as_str()).collect();
+    let skip: std::collections::HashSet<&str> = exclude_dirs.iter().map(|s| s.as_str()).collect();
     let run = gitx::new_runner();
 
     let mut in_scope: Vec<Copy> = Vec::new();
@@ -283,7 +282,10 @@ mod tests {
     fn test_normalize_url() {
         let cases = [
             ("git@github.com:inovacc/omni.git", "github.com/inovacc/omni"),
-            ("https://github.com/inovacc/omni.git", "github.com/inovacc/omni"),
+            (
+                "https://github.com/inovacc/omni.git",
+                "github.com/inovacc/omni",
+            ),
             ("https://github.com/inovacc/omni", "github.com/inovacc/omni"),
             (
                 "ssh://git@github.com/lb-conn/treasury",
@@ -347,7 +349,12 @@ mod tests {
         let third_party_path = format!("D:{sep}public_repos{sep}someupstream");
         let join = |parts: &[&str]| parts.join(&sep.to_string());
         let cases: [(&str, String, &str, bool); 5] = [
-            ("path under third-party dir", third_party_path, "inovacc", true),
+            (
+                "path under third-party dir",
+                third_party_path,
+                "inovacc",
+                true,
+            ),
             (
                 "local-only repo (no owner) is in scope",
                 join(&["D:", "projects", "x"]),
@@ -374,11 +381,7 @@ mod tests {
             ),
         ];
         for (name, path, owner, want) in cases {
-            assert_eq!(
-                is_third_party(&path, owner, &scope),
-                want,
-                "case: {name}"
-            );
+            assert_eq!(is_third_party(&path, owner, &scope), want, "case: {name}");
         }
     }
 
@@ -415,8 +418,13 @@ mod tests {
         let dotgit_str = outer.join(".git").to_string_lossy().to_string();
 
         // default: excludes nested repos.
-        let (in_scope, _tp) =
-            discover(&[base_str.clone()], &default_scope(), &[], false).unwrap();
+        let (in_scope, _tp) = discover(
+            std::slice::from_ref(&base_str),
+            &default_scope(),
+            &[],
+            false,
+        )
+        .unwrap();
         assert!(
             contains_path(&in_scope, &outer_str),
             "expected outer repo in results"
@@ -432,7 +440,7 @@ mod tests {
 
         // include_nested: finds both outer and inner.
         let (in_scope, _tp) =
-            discover(&[base_str.clone()], &default_scope(), &[], true).unwrap();
+            discover(std::slice::from_ref(&base_str), &default_scope(), &[], true).unwrap();
         assert!(
             contains_path(&in_scope, &outer_str),
             "expected outer repo in results"

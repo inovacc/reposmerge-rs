@@ -22,16 +22,19 @@ use crate::model::{Branch, Copy, Fingerprint};
 /// Faithful to Go `Compute`. Returns `Ok(())` always in practice — git errors
 /// are individually swallowed (via `safe`/`_`) exactly as the source does; the
 /// `Result` signature is kept for parity with the Go `error` return.
+// Go builds the Fingerprint imperatively, field-by-field from successive git
+// calls (`var fp; fp.X = ...`); the port keeps that flow faithfully rather than
+// hoisting every git call above a single struct literal.
+#[allow(clippy::field_reassign_with_default)]
 pub fn compute(r: &dyn Runner, c: &mut Copy) -> Result<(), GitError> {
     let mut fp = Fingerprint::default();
 
     // "" for empty repo (Go: fp.Head, _ = ...).
     fp.head = r.run(&c.path, &["rev-parse", "HEAD"]).unwrap_or_default();
 
-    fp.root_commits = lines(&safe(r.run(
-        &c.path,
-        &["rev-list", "--max-parents=0", "--all"],
-    )));
+    fp.root_commits = lines(&safe(
+        r.run(&c.path, &["rev-list", "--max-parents=0", "--all"]),
+    ));
     fp.root_commits.sort();
 
     fp.all_commits = lines(&safe(r.run(&c.path, &["rev-list", "--all"])));
