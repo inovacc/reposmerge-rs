@@ -8,7 +8,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | # | module | tests-ported | code-ported | verified | parity | commit |
 |---|--------|:---:|:---:|:---:|--------|--------|
 | 1 | model       | ☑ | ☑ | ☑ | PASS (1 test) | (see git) |
-| 2 | gitx        | ☐ | ☐ | ☐ | — | — |
+| 2 | gitx        | ☑ | ☑ | ☑ | PASS (2 tests total) | (see git) |
 | 3 | fingerprint | ☐ | ☐ | ☐ | — | — |
 | 4 | group       | ☐ | ☐ | ☐ | — | — |
 | 5 | discover    | ☐ | ☐ | ☐ | — | — |
@@ -27,6 +27,21 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   `DirMtime`; `std::time` cannot format calendar dates or the Go zero-time
   `0001-01-01T00:00:00Z`. Alt: `time` crate — chrono chosen for serde+RFC3339Nano.
 - `serde_json` — deferred to `report` module (not needed by `model` itself).
+
+## gitx (module 2)
+- Dependencies added: **none** (std only: std::process, std::collections,
+  std::path, std::cell, std::fmt).
+- `Runner` trait drops Go's `context.Context` param (no cancellation tested).
+  `run(&self, dir: &str, args: &[&str]) -> Result<String, GitError>` — takes
+  `&self` so `&dyn Runner` works; `Fake` uses `RefCell<Vec<String>>` for `calls`.
+- Error type `GitError` (struct) reproduces Go string
+  `git <args> (in <dir>): <cause>: <trimmed stderr>` via `Display`. `cause` for
+  exit failures is `exit status N` (mirrors Go `*exec.ExitError`); PARITY note:
+  exact spawn-error text (git-not-found) is OS-specific and untested.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green — though the single Fake test may pass immediately since it needs
+  no ExecRunner; still confirm build), `cargo build`, fill provenance sha256,
+  commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.

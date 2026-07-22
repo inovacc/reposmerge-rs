@@ -12,6 +12,16 @@
       ],
       "target_files": [ "src/model.rs" ],
       "status": "verified"
+    },
+    "gitx": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "pkg/gitx/gitx.go", "sha256": "e1d078a44bd3524bed4889ca881eba8fd461872101013dd5615a1b9c69e472d3" },
+        { "path": "pkg/gitx/fake.go", "sha256": "e47ac23a477b04056a329d40db59f37863faae041616bff41fc5a85515ec2dcb" },
+        { "path": "pkg/gitx/gitx_test.go", "sha256": "b7c891c95854ed8ec28504f4b33256732e746809013ae26a9013de495a850d51" }
+      ],
+      "target_files": [ "src/gitx.rs" ],
+      "status": "verified"
     }
   }
 }

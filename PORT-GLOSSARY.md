@@ -36,6 +36,26 @@ kept verbatim — do NOT use `rename_all`, it would mangle them).
 Zero `time.Time` reproduced via `zero_time()` = year-1 `0001-01-01T00:00:00Z`
 in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
 
+## gitx `Runner` — cross-module identity (fingerprint, safety, consolidate depend on this)
+- Go `Runner.Run(ctx, dir string, args ...string) (string, error)` →
+  Rust `trait Runner { fn run(&self, dir: &str, args: &[&str]) -> Result<String, GitError>; }`
+  in `crate::gitx`.
+  - **`context.Context` is DROPPED** — no cancellation tested; omit it in every
+    downstream caller too (do NOT reintroduce a ctx/cancel param).
+  - `run` takes **`&self`** (not `&mut self`) so callers can hold `&dyn Runner`
+    and call repeatedly. Any Runner needing to record state (like `Fake`) uses
+    **interior mutability** (`RefCell`).
+- Error type: **`gitx::GitError`** (pub struct: `args`, `dir`, `cause`, `stderr`)
+  impl `Display` + `std::error::Error`. Display =
+  `git <args joined " "> (in <dir>): <cause>: <trimmed stderr>` (faithful to Go).
+  Downstream modules propagate it with `?` (may wrap in their own error enum).
+- Constructors: `gitx::new_runner() -> ExecRunner` (Go `New`), also
+  `ExecRunner::new()`. Test double: `gitx::Fake::new()` (Go `NewFake`) with
+  builders `.with_response(key, val)` / `.with_error(key, val)`; pub fields
+  `responses`, `errs` (`HashMap<String,String>`) and `calls: RefCell<Vec<String>>`
+  (`.calls()` returns a snapshot). Match key = `args.join(" ")`.
+- `gitx::is_repo(dir: &Path) -> bool` (Go `IsRepo`) — checks `dir/.git` exists.
+
 ## JSON / serialization parity (report module) — CRITICAL
 - Model structs carry **no `json:` tags**, so Go marshals exported fields with
   their **exact PascalCase** names: `Path`, `Root`, `Machine`, `Owner`,

@@ -5,7 +5,7 @@
 //! strategy → consolidate → app → (cmd = src/main.rs).
 
 pub mod model;
-// pub mod gitx;
+pub mod gitx;
 // pub mod fingerprint;
 // pub mod group;
 // pub mod discover;
