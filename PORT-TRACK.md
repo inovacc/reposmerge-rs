@@ -16,9 +16,9 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 7 | safety      | ☑ | ☑ | ☑ | PASS (32 tests total, Win rollback ✓) | (see git) |
 | 8 | strategy    | ☑ | ☑ | ☑ | PASS (38 tests total) | (see git) |
 | 9 | consolidate | ☑ | ☑ | ☑ | PASS (49 tests total, real-git ✓) | (see git) |
-| 10| app         | ☐ | ☐ | ☐ | — | — |
-| 11| cmd (main)  | ☐ | ☐ | ☐ | — | — |
-|  + | e2e (tests/) | ☐ | ☐ | ☐ | — | — |
+| 10| app         | ☑ | ☑ | ☑ | PASS (inert shim; mantle runtime out-of-scope) | (see git) |
+| 11| cmd (main)  | ☑ | ☑ | ☑ | PASS (cli subcommands test; binary builds) | (see git) |
+|  + | e2e (tests/) | ☑ | ☑ | ☑ | PASS (real-git full-pipeline ✓) | (see git) |
 
 ## Dependencies added
 - `serde` (+ derive) — JSON (de)serialization parity for `report` module; std has
@@ -276,8 +276,88 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   ensure `git` on PATH for test 11, fill provenance sha256 (`PENDING-EXEC`), set
   row 9 verified, commit.
 
+## app (module 10) — mantle config shim
+- Dependencies added: **none**. `src/app.rs` enabled via `pub mod app;` in lib.rs.
+- Public API: `struct Features{logging, observability, daemon: bool}`,
+  `struct LoggerConfig{level, format, redact}`, `struct ObservabilityConfig{
+  protocol, sample: f64, interval_secs: u64, runtime_metrics}`,
+  `struct Base{environment, features, logger, observability}`,
+  `struct App{base: Base}`, `fn default_base() -> Base`, `fn new() -> App`.
+- **MANTLE BOUNDARY (faithful-scope, NOT a defect).** Go `app.App` squash-embeds
+  `mantle/bootstrap.Base`, and `main.go` calls `bootstrap.Configure(...)`, which
+  wires an ENTIRE framework runtime in cobra's PersistentPreRunE: viper config-file
+  loading, otel observability pipeline, structured/redacting logger, daemon
+  supervisor. reposmerge's own commands NEVER read that Runtime — it is inert
+  framework plumbing. Per the porting rule "map an external framework, don't
+  reimplement it", mantle's viper/otel/logger/daemon runtime is **out of scope and
+  NOT reimplemented**. `app.rs` reproduces ONLY the inert CONFIG DATA of
+  `DefaultBase()` (environment "dev", features.logging=true/observability=daemon=
+  false, logger info/json/redact, observability grpc/1.0/15s/runtime-metrics). The
+  exact mantle default values live in an external module (unreadable here); the
+  seeded values are modeled per the documented defaults and simplified to the
+  fields that matter — documented in the module doc comment. The struct is inert
+  (never read by any command); a doc comment says so.
+- Characterization test `new_seeds_default_base` written (source had no app test).
+
+## cmd / main (module 11) — clap CLI
+- Dependency added: **`clap` (features=["derive"])** — Go cobra → Rust clap; std
+  has no arg parser. Alt: hand-roll — rejected (subcommands/defaults/help parity).
+- `src/main.rs` REPLACES the placeholder. Derive `Cli` with global `--config/-c`
+  (accepted, unused, parity) + `#[command(version)]` (= CARGO_PKG_VERSION), and 4
+  subcommands `scan|plan|apply|verify` with EXACT Go flag names/defaults/help.
+  Dispatch → `Result<(), Box<dyn Error>>`; on Err print just the error to stderr +
+  `exit(1)` (cobra SilenceUsage=true parity — no usage dump).
+- **Mantle global-flag decision:** accepted ONLY `--config/-c` (unused) for parity.
+  The other mantle globals (`--env`, `--log-level`, `--verbose/-v`, `--quiet/-q`,
+  `--log-format`, `--log-source`, `--no-redact`, `--otel`, `--otel-endpoint`,
+  `--otel-protocol`, `--daemon`) are **intentionally OMITTED** as out-of-scope
+  framework plumbing (they only feed the un-ported mantle runtime). Documented in
+  main.rs module doc.
+- **Scan concurrency:** bounded worker pool via `std::thread::scope` (NO new dep —
+  no rayon). The in-scope slice is split with `chunks_mut(ceil(n/workers))` into
+  ≤`workers` disjoint contiguous chunks, one thread per chunk; each index is
+  fingerprinted by exactly one thread (safe mutation), replacing Go's semaphore +
+  WaitGroup over goroutines mutating `inScope[i]`. `ExecRunner` (unit struct, Sync)
+  shared by reference. `dir_mtime` from `fs::metadata(path).modified()` →
+  `DateTime::<Utc>::from(SystemTime)`; errors leave zero-time.
+- `default_workers()` = `available_parallelism()*2` capped 16 min 1 (Err → 1).
+- `generated_at` = `Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)` (Go
+  `time.Now().UTC().Format(time.RFC3339)` — seconds precision, `Z`).
+- Faithful command bodies: scan (discover→pooled fingerprint→group→plan→
+  write_inventory/write_plan + summary line), plan (load_plan→decide per group→
+  write_plan), apply (reachability_proof gate→consolidate::apply→optional
+  physical_reachability→manifest→checksums, exact stderr/stdout wording + error
+  strings), verify (reachability_proof + optional physical → OK / FAILED).
+- Test `subcommands_registered` (port of Go `TestSubcommandsRegistered`) asserts
+  the clap Command exposes scan/plan/apply/verify via `get_subcommands()`.
+
+## e2e (integration test) — tests/e2e.rs
+- Port of `internal/e2e/e2e_test.go::TestConsolidatePreservesAllCommits` as a Rust
+  integration test over the public `reposmerge::` API. Builds two shared-lineage
+  git repos (base + filesystem copy via `safety::copy_tree`), diverges each with a
+  unique commit, runs discover→fingerprint→group→strategy→reachability→apply, then
+  asserts `git -C <dest> log --all --format=%s` contains root/live-only/acer-only,
+  `physical_reachability` empty, both sources' `.git` intact, and
+  `decisions[0].strategy == StrategyKind::B`. Go's `-short` skip is DROPPED (Go
+  skipped it under -short; the conductor always runs it with git available). Uses
+  `std::process::Command` for git and OS-temp dirs (parity with `t.TempDir()`).
+
+## PARITY concerns (modules 10/11/e2e)
+- **Mantle framework boundary** (above) — the biggest scope decision; inert runtime
+  not reimplemented; only CLI surface + inert config data reproduced.
+- **`generated_at` non-determinism** — `Utc::now()` at scan time is inherently
+  non-deterministic (as in Go); not byte-checkable, only shape-checked.
+- **Worker-pool ordering** — fingerprints run concurrently; each index written by
+  exactly one thread so results are order-independent (`group::build` re-derives
+  deterministic order). No data race; no observable divergence vs Go's goroutine
+  pool.
+- **exec** — porter had no Bash/exec: could NOT run `cargo test`/`cargo build` or
+  compute provenance sha256. Conductor MUST run `cargo build`, `cargo test`
+  (fail→green; needs real `git` on PATH for the e2e + any real-git tests), fill
+  provenance `PENDING-EXEC` hashes, flip rows 10/11/e2e `verified`, and commit.
+
 ## Deviations / gaps
-- `app` (mantle shim): no source tests — write characterization test before porting.
+- `app` (mantle shim): no source tests — characterization test written (see above).
 - `model`: PARITY-VERIFY zero `time.Time`. Go zero value → JSON
   `"0001-01-01T00:00:00Z"` and `Unix() = -62135596800` → `/86400 = -719162`
   (trunc-toward-zero). Reproduced via `zero_time()` (year-1) + i64 truncating

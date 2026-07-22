@@ -89,6 +89,35 @@
       ],
       "target_files": [ "src/consolidate.rs" ],
       "status": "verified"
+    },
+    "app": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "cmd/reposmerge/internal/app/app.go", "sha256": "0aac1bc171bff053f7d37c2e03608cae67e2db6e6191b93f48224c2cf3664926" }
+      ],
+      "target_files": [ "src/app.rs" ],
+      "status": "verified"
+    },
+    "cmd": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "cmd/reposmerge/main.go", "sha256": "6d7e213abb0658b17fa1c76bd204e585a52d13e316eef67b443c4d387bd8cfea" },
+        { "path": "cmd/reposmerge/scan.go", "sha256": "eebcdae3ca0d3acbcdefdb5e364d3016c3079081e48edb61ccf6fa0ce4c252d7" },
+        { "path": "cmd/reposmerge/plan.go", "sha256": "6c8b642351bfc5dfb5bb0541f8f703112be8ccea3b791668ffac67acc5a8681e" },
+        { "path": "cmd/reposmerge/apply.go", "sha256": "6414b9e0ad92f5bb99d29e28dcdb50abcd430af5e6daed734c4df749d5100052" },
+        { "path": "cmd/reposmerge/verify.go", "sha256": "1530aaa6a991f0d81f119d358f0fa22d1bb818c34c642684c40c0bcdecc3f8ad" },
+        { "path": "cmd/reposmerge/cli_test.go", "sha256": "943a9cd8c622961fe0e52dbe32217574ed108fe4e6dddf62c5a9638547c946e6" }
+      ],
+      "target_files": [ "src/main.rs" ],
+      "status": "verified"
+    },
+    "e2e": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/e2e/e2e_test.go", "sha256": "d7456454cc24b3c1967a7d784b33db40bbdc58dfc2450f75e5adff0b2c660061" }
+      ],
+      "target_files": [ "tests/e2e.rs" ],
+      "status": "verified"
     }
   }
 }

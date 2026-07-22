@@ -136,3 +136,16 @@ re-invent, for any later module that serializes model types:
 - `StrategyKind` string form (`A-richest-quarantine`/`B-union-branches`/
   `C-snapshot`) is produced in `report::strategy_str` for the human-facing md
   files; JSON uses the serde rename (identical strings).
+
+## app + cmd (modules 10/11) — mantle boundary + CLI decisions
+- `crate::app`: inert config shim only — `App{base: Base}`, `Base{environment,
+  features: Features, logger: LoggerConfig, observability: ObservabilityConfig}`,
+  `new() -> App`, `default_base() -> Base`. Mantle's viper/otel/logger/daemon
+  RUNTIME is **out of scope, NOT reimplemented** (framework-mapping rule). The
+  struct is never read by any command.
+- CLI = **clap derive** (Go cobra → clap; dep `clap` features=["derive"]). Global
+  flag surface: **only `--config/-c`** (accepted, unused) + `--version`; all other
+  mantle globals (`--env`/`--log-level`/`--verbose`/`--quiet`/`--log-format`/
+  `--log-source`/`--no-redact`/`--otel*`/`--daemon`) OMITTED as framework plumbing.
+- Scan uses `std::thread::scope` + `chunks_mut` bounded pool (no rayon). `cmd`
+  binary + `tests/e2e.rs` consume the library exclusively via `reposmerge::<mod>`.
