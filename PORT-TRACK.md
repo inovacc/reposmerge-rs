@@ -11,7 +11,7 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
 | 2 | gitx        | ☑ | ☑ | ☑ | PASS (2 tests total) | (see git) |
 | 3 | fingerprint | ☑ | ☑ | ☑ | PASS (3 tests total) | (see git) |
 | 4 | group       | ☑ | ☑ | ☑ | PASS (6 tests total) | (see git) |
-| 5 | discover    | ☐ | ☐ | ☐ | — | — |
+| 5 | discover    | ☑ | ☑ | ☑ | PASS (13 tests total) | (see git) |
 | 6 | report      | ☐ | ☐ | ☐ | — | — |
 | 7 | safety      | ☐ | ☐ | ☐ | — | — |
 | 8 | strategy    | ☐ | ☐ | ☐ | — | — |
@@ -27,6 +27,13 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   `DirMtime`; `std::time` cannot format calendar dates or the Go zero-time
   `0001-01-01T00:00:00Z`. Alt: `time` crate — chrono chosen for serde+RFC3339Nano.
 - `serde_json` — deferred to `report` module (not needed by `model` itself).
+- `sha2` (module 5, discover) — Sha256 for `source_disc`; std has no crypto. Alt:
+  hand-rolled sha256 = reinvention defect, rejected.
+- `hex` (module 5, discover) — hex-encode the digest (Go encoding/hex). Well-known;
+  alt: hand-roll ~3 lines — chose `hex` for clarity, logged.
+- `walkdir` (module 5, discover) — faithful recursive walk with prune/skip-subtree
+  matching Go `filepath.WalkDir` + `filepath.SkipDir`; `std::fs` has no walker with
+  skip-descend control. Uses `into_iter()` + `it.skip_current_dir()` to mirror SkipDir.
 
 ## gitx (module 2)
 - Dependencies added: **none** (std only: std::process, std::collections,
@@ -91,6 +98,41 @@ Pair: go2rust · Scope: full 1:1 parity · Target: `../reposmerge-rs`
   (confirm the 3 group tests fail before compile / green after — since the module
   was gated behind `// pub mod group;`, the fail state is the un-compiled module),
   `cargo build`, fill provenance sha256 (currently `PENDING-EXEC`), commit.
+
+## discover (module 5)
+- Dependencies added: `sha2`, `hex`, `walkdir` (justified above). Consumes
+  `crate::model::Copy` and `crate::gitx::{new_runner, is_repo, Runner, GitError}`.
+- Public API: `Scope{in_scope_owners, third_party_dirs}`, `default_scope() -> Scope`,
+  `normalize_url(&str) -> String`, `parse_owner_repo(&str,&str) -> (String,String)`,
+  `infer_machine(&str) -> String`, `source_disc(&str) -> String`,
+  `discover(&[String], &Scope, &[String], bool) -> Result<(Vec<Copy>,Vec<Copy>),GitError>`,
+  `pub(crate) is_third_party(&str,&str,&Scope) -> bool`. `Discover` drops Go ctx.
+- FAITHFUL details: `normalize_url` reproduces the Go trim sequence byte-for-byte
+  incl. the `u+"/"` first-slash trick via `find('/').unwrap_or(len)`; single
+  TrimSuffix/TrimPrefix via `strip_*` fallbacks; `Replace(u,":","/",1)` via
+  `replace_range` on first ':'. `infer_machine` does ToSlash FIRST then lowercase,
+  switch order preserved. `to_slash` is platform-aware (no-op on Unix where SkipDir
+  test paths already use '/').
+- dir-extraction decision (source_disc): Go uses `filepath.ToSlash(filepath.Dir(p))`.
+  Implemented as: normalize to '/', strip one trailing '/', cut at last '/'. Passes
+  determinism + differs-by-path. Documented in code comment.
+- walk: `WalkDir::new(root).into_iter()` loop; tolerate `Err` entries (Go returns nil
+  on error → continue); dirs only; exclude-dir names and ".git" → `skip_current_dir()`;
+  non-repo → continue; repo found → build Copy, classify, and when `!include_nested`
+  call `skip_current_dir()` (== Go SkipDir). ".git" is skipped by NAME before is_repo
+  so it is never returned as a repo.
+- PARITY concerns:
+  - walkdir `skip_current_dir()` vs `filepath.SkipDir`: both prune the current
+    directory's remaining subtree. Semantics match for the tested cases; note walkdir
+    prunes children not-yet-yielded of the current dir, which is the SkipDir contract.
+  - `infer_machine` ToSlash-then-lowercase ordering preserved (order only matters if a
+    separator were uppercase-sensitive — it isn't — but kept faithful regardless).
+  - `test_discover_nested_repos` EXECs real `git config` (returns error on bare .git
+    dirs → url "") and touches FS under system temp; robust to git errors via
+    `unwrap_or_default()`. Conductor must have `git` on PATH.
+- NOT exec-verified: porter had no Bash/exec. Conductor must run `cargo test`
+  (fail→green: module was gated behind `// pub mod discover;`), `cargo build`, fill
+  provenance sha256 (currently `PENDING-EXEC`), commit.
 
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — write characterization test before porting.

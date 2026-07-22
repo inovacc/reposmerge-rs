@@ -56,6 +56,17 @@ in `Fingerprint::Default` (chrono supports year 1). PARITY-VERIFY at `report`.
   (`.calls()` returns a snapshot). Match key = `args.join(" ")`.
 - `gitx::is_repo(dir: &Path) -> bool` (Go `IsRepo`) — checks `dir/.git` exists.
 
+## discover module — shared types/decisions (module 5)
+- `discover::Scope { in_scope_owners: Vec<String>, third_party_dirs: Vec<String> }`
+  (pub fields); `discover::default_scope() -> Scope` (Go `DefaultScope`).
+- Free fns (snake_case): `normalize_url`, `parse_owner_repo`, `infer_machine`,
+  `source_disc`, `discover`, `pub(crate) is_third_party`. `discover(...)` returns
+  `Result<(Vec<Copy>, Vec<Copy>), gitx::GitError>` = (in_scope, third_party); Go
+  `context.Context` DROPPED.
+- Deps introduced (reuse, don't re-add): `sha2` (Sha256), `hex`, `walkdir`.
+- `source_disc` token = first 6 hex chars of `sha256(ToSlash(Dir(path)))`; parent-dir
+  extraction normalizes to '/', strips one trailing '/', cuts at last '/'.
+
 ## JSON / serialization parity (report module) — CRITICAL
 - Model structs carry **no `json:` tags**, so Go marshals exported fields with
   their **exact PascalCase** names: `Path`, `Root`, `Machine`, `Owner`,

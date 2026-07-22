@@ -40,6 +40,15 @@
       ],
       "target_files": [ "src/group.rs" ],
       "status": "verified"
+    },
+    "discover": {
+      "source_commit": "479a7c585fad56d4330a1136e5f19b682d02c609",
+      "source_files": [
+        { "path": "internal/discover/discover.go", "sha256": "94a28f3f3f9fafcd2051cf5f0024e22b4809e3b7fa980e75cb5be0adb9c9ae7e" },
+        { "path": "internal/discover/discover_test.go", "sha256": "672e67fffd0065e9ebe0349b30fd1a6097bb375b920967fabb4030d61d505c55" }
+      ],
+      "target_files": [ "src/discover.rs" ],
+      "status": "verified"
     }
   }
 }

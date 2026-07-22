@@ -8,7 +8,7 @@ pub mod model;
 pub mod gitx;
 pub mod fingerprint;
 pub mod group;
-// pub mod discover;
+pub mod discover;
 // pub mod report;
 // pub mod safety;
 // pub mod strategy;
