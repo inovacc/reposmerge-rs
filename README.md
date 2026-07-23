@@ -1,5 +1,9 @@
 # reposmerge
-<!-- rev:002 (RFC 3339) 2026-07-22T23:47:23Z -->
+<!-- rev:003 (RFC 3339) 2026-07-23T00:07:00Z -->
+
+[![CI](https://github.com/inovacc/reposmerge-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/inovacc/reposmerge-rs/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/inovacc/reposmerge-rs?sort=semver)](https://github.com/inovacc/reposmerge-rs/releases/latest)
+[![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 
 > Consolidate duplicated/scattered git repository copies into one canonical tree — without losing a single commit.
 
