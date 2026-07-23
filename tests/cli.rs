@@ -287,11 +287,26 @@ fn build_union_tree() -> (PathBuf, String) {
     );
 
     // Clones do NOT inherit user identity, and CI runners have no global git
-    // config — configure each clone before committing into it.
+    // config — configure each clone before committing into it. Also point origin
+    // at an in-scope owner (`inovacc`): a clone's default origin is the local
+    // `_origin` path, whose parsed owner is out-of-scope and gets classified
+    // third-party (and excluded) on POSIX — where the `/`-path splits into
+    // owner/repo — while on Windows the backslash path doesn't split, so it read
+    // as a local-only in-scope repo. Setting an in-scope remote makes discovery
+    // deterministic across platforms.
     for c in [&live, &dell] {
         git(c, &["config", "user.email", "t@t"]);
         git(c, &["config", "user.name", "t"]);
         git(c, &["config", "commit.gpgsign", "false"]);
+        git(
+            c,
+            &[
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/inovacc/projX.git",
+            ],
+        );
     }
 
     // dell copy gains an extra local-only branch + commit; only union preserves it.
