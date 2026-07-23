@@ -249,6 +249,165 @@ fn apply_dry_run_then_confirm() {
     let _ = std::fs::remove_dir_all(destdir.parent().unwrap());
 }
 
+/// Build a shared-lineage union fixture: one origin repo with real history,
+/// two clones on distinct "machine" paths, and an extra local-only branch +
+/// commit on the second clone. Returns `(tree, extra_sha)` where `extra_sha`
+/// is the commit that only union can preserve. This is the "does it actually
+/// work" case — Strategy B union that ends in a clean physical verify.
+fn build_union_tree() -> (PathBuf, String) {
+    let tree = temp_dir("union");
+    let origin = tree.join("_origin").join("projX");
+    init_repo(&origin);
+    write(&origin, "README.md", "X");
+    git(&origin, &["add", "."]);
+    git(&origin, &["commit", "-qm", "init"]);
+    write(&origin, "main.rs", "fn main() {}");
+    git(&origin, &["add", "."]);
+    git(&origin, &["commit", "-qm", "c2"]);
+
+    let live = tree.join("live").join("projX");
+    let dell = tree.join("dell").join("projX");
+    git(
+        &tree,
+        &[
+            "clone",
+            "-q",
+            origin.to_str().unwrap(),
+            live.to_str().unwrap(),
+        ],
+    );
+    git(
+        &tree,
+        &[
+            "clone",
+            "-q",
+            origin.to_str().unwrap(),
+            dell.to_str().unwrap(),
+        ],
+    );
+
+    // dell copy gains an extra local-only branch + commit; only union preserves it.
+    git(&dell, &["checkout", "-q", "-b", "feature"]);
+    write(&dell, "feat.txt", "f");
+    git(&dell, &["add", "."]);
+    git(&dell, &["commit", "-qm", "feat"]);
+    let out = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(&dell)
+        .output()
+        .expect("git rev-parse");
+    let extra_sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+
+    std::fs::remove_dir_all(tree.join("_origin")).unwrap();
+    (tree, extra_sha)
+}
+
+/// The full pipeline must physically consolidate and self-prove no loss:
+/// scan -> plan -> apply --confirm (physical verify OK) -> verify --physical
+/// (verify OK), and the union must preserve the extra local-only commit.
+#[test]
+fn full_pipeline_physical_verify_preserves_branches() {
+    let (tree, extra_sha) = build_union_tree();
+    let out = temp_dir("out");
+    let destdir = temp_dir("dest").join("canonical");
+
+    bin()
+        .args([
+            "scan",
+            "--roots",
+            tree.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--dest",
+            destdir.to_str().unwrap(),
+            "--workers",
+            "1",
+        ])
+        .assert()
+        .success();
+
+    bin()
+        .args([
+            "plan",
+            "--out",
+            out.to_str().unwrap(),
+            "--dest",
+            destdir.to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+
+    let plan_json = out.join("reports").join("plan.json");
+
+    // apply --confirm runs a post-apply physical verification that must pass.
+    bin()
+        .args([
+            "apply",
+            "--plan",
+            plan_json.to_str().unwrap(),
+            "--dest",
+            destdir.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--confirm",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("post-apply physical verification OK"));
+
+    // Independent physical verify pass over the real consolidated repos.
+    bin()
+        .args([
+            "verify",
+            "--plan",
+            plan_json.to_str().unwrap(),
+            "--physical",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("verify OK"));
+
+    // The extra local-only commit must be reachable in the consolidated repo.
+    let mut found = false;
+    for entry in walk_git_repos(&destdir) {
+        let log = Command::new("git")
+            .args(["-C", entry.to_str().unwrap(), "log", "--all", "--format=%H"])
+            .output()
+            .expect("git log");
+        if String::from_utf8_lossy(&log.stdout).contains(&extra_sha) {
+            found = true;
+            break;
+        }
+    }
+    assert!(
+        found,
+        "extra local-only commit {extra_sha} not preserved in consolidated tree"
+    );
+
+    let _ = std::fs::remove_dir_all(&tree);
+    let _ = std::fs::remove_dir_all(&out);
+    let _ = std::fs::remove_dir_all(destdir.parent().unwrap());
+}
+
+/// Yield every git working tree (dir containing `.git`) under `root`.
+fn walk_git_repos(root: &Path) -> Vec<PathBuf> {
+    let mut repos = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        if dir.join(".git").exists() {
+            repos.push(dir.clone());
+        }
+        if let Ok(rd) = std::fs::read_dir(&dir) {
+            for e in rd.flatten() {
+                if e.file_type().map(|t| t.is_dir()).unwrap_or(false) && e.file_name() != ".git" {
+                    stack.push(e.path());
+                }
+            }
+        }
+    }
+    repos
+}
+
 #[test]
 fn no_subcommand_shows_error() {
     bin().assert().failure();
