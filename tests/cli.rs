@@ -286,6 +286,14 @@ fn build_union_tree() -> (PathBuf, String) {
         ],
     );
 
+    // Clones do NOT inherit user identity, and CI runners have no global git
+    // config — configure each clone before committing into it.
+    for c in [&live, &dell] {
+        git(c, &["config", "user.email", "t@t"]);
+        git(c, &["config", "user.name", "t"]);
+        git(c, &["config", "commit.gpgsign", "false"]);
+    }
+
     // dell copy gains an extra local-only branch + commit; only union preserves it.
     git(&dell, &["checkout", "-q", "-b", "feature"]);
     write(&dell, "feat.txt", "f");
