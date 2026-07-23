@@ -20,7 +20,7 @@
       "note": "Added tests/cli.rs full-pipeline physical-verify gate: scan->plan->apply --confirm (post-apply physical verification OK) -> verify --physical (verify OK), asserting an extra local-only union commit survives on disk. Proves the binary functionally consolidates + self-proves no loss. No source re-port."
     },
     {
-      "commit": "pending",
+      "commit": "63482cc",
       "date": "2026-07-23",
       "kind": "deliberate-deviation",
       "modules": ["group"],
