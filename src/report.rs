@@ -30,6 +30,7 @@ fn go_slice_v(items: &[String]) -> String {
 /// rename used for JSON), reproducing Go's `%s` on the strategy.
 fn strategy_str(s: model::StrategyKind) -> &'static str {
     match s {
+        model::StrategyKind::Unset => "",
         model::StrategyKind::A => "A-richest-quarantine",
         model::StrategyKind::B => "B-union-branches",
         model::StrategyKind::C => "C-snapshot",

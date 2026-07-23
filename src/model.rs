@@ -237,9 +237,14 @@ impl Fingerprint {
 /// Serializes to the exact Go string values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum StrategyKind {
+    /// zero value — Go `StrategyKind` is `type StrategyKind string`, so an
+    /// undecided Decision serializes `Strategy` as the empty string. Matches
+    /// Go's zero value (e.g. at `scan` time, before `plan` decides A/B/C).
+    #[serde(rename = "")]
+    #[default]
+    Unset,
     /// remote-backed
     #[serde(rename = "A-richest-quarantine")]
-    #[default]
     A,
     /// local-only, shared lineage
     #[serde(rename = "B-union-branches")]
