@@ -270,6 +270,124 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
 
+    // ---- error-wrap plumbing (parity of the Go `fmt.Errorf` wrap strings) ----
+
+    #[test]
+    fn error_display_and_source_pass_through_inner() {
+        let io = Error::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "nope"));
+        assert_eq!(io.to_string(), "nope");
+        assert!(std::error::Error::source(&io).is_some());
+
+        let ge = crate::gitx::GitError {
+            args: vec!["fetch".into()],
+            dir: "/d".into(),
+            cause: "exit status 1".into(),
+            stderr: "boom".into(),
+        };
+        let g = Error::Git(ge);
+        assert_eq!(g.to_string(), "git fetch (in /d): exit status 1: boom");
+        assert!(std::error::Error::source(&g).is_some());
+    }
+
+    #[test]
+    fn error_from_conversions() {
+        let e: Error = std::io::Error::other("x").into();
+        assert!(matches!(e, Error::Io(_)));
+        let ge = crate::gitx::GitError {
+            args: vec![],
+            dir: String::new(),
+            cause: "c".into(),
+            stderr: String::new(),
+        };
+        let e2: Error = ge.into();
+        assert!(matches!(e2, Error::Git(_)));
+    }
+
+    #[test]
+    fn wrap_io_prepends_prefix_go_style() {
+        let e = wrap_io(
+            "copy canonical omni".into(),
+            std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
+        );
+        assert_eq!(e.to_string(), "copy canonical omni: denied");
+        assert!(matches!(e, Error::Io(_)));
+    }
+
+    #[test]
+    fn wrap_io_variant_prepends_and_keeps_kind() {
+        let inner = Error::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "missing"));
+        let e = wrap("check canonical omni".into(), inner);
+        assert_eq!(e.to_string(), "check canonical omni: missing");
+        match e {
+            Error::Io(io) => assert_eq!(io.kind(), std::io::ErrorKind::NotFound),
+            _ => panic!("expected Io"),
+        }
+    }
+
+    #[test]
+    fn wrap_git_variant_prepends_to_cause_preserving_fields() {
+        // The Go code wraps the whole error; the port prepends to `cause` so
+        // args/dir/stderr survive and Display stays faithful.
+        let ge = crate::gitx::GitError {
+            args: vec!["remote".into(), "add".into()],
+            dir: "/repo".into(),
+            cause: "exit status 128".into(),
+            stderr: "already exists".into(),
+        };
+        let e = wrap("union acme".into(), Error::Git(ge));
+        match e {
+            Error::Git(g) => {
+                assert_eq!(g.args, vec!["remote".to_string(), "add".to_string()]);
+                assert_eq!(g.dir, "/repo");
+                assert_eq!(g.stderr, "already exists");
+                assert_eq!(g.cause, "union acme: exit status 128");
+                assert_eq!(
+                    g.to_string(),
+                    "git remote add (in /repo): union acme: exit status 128: already exists"
+                );
+            }
+            _ => panic!("expected Git"),
+        }
+    }
+
+    #[test]
+    fn canonical_excludes_appends_quarantine() {
+        assert_eq!(
+            canonical_excludes(&["node_modules".to_string()]),
+            vec!["node_modules".to_string(), "_quarantine".to_string()]
+        );
+        assert_eq!(canonical_excludes(&[]), vec!["_quarantine".to_string()]);
+    }
+
+    #[test]
+    fn options_excludes_models_go_nil_vs_nonnil() {
+        // include_generated => empty (Go nil), even if exclude_dirs is Some.
+        let o = Options {
+            include_generated: true,
+            exclude_dirs: Some(vec!["x".into()]),
+            ..Default::default()
+        };
+        assert!(o.excludes().is_empty());
+        // None => DefaultExcludes.
+        let o2 = Options {
+            exclude_dirs: None,
+            ..Default::default()
+        };
+        assert_eq!(o2.excludes(), default_excludes());
+        // Some(non-empty) => that list verbatim.
+        let o3 = Options {
+            exclude_dirs: Some(vec!["only".into()]),
+            ..Default::default()
+        };
+        assert_eq!(o3.excludes(), vec!["only".to_string()]);
+        // Some(empty) => empty (Go non-nil empty slice), NOT the defaults.
+        let o4 = Options {
+            exclude_dirs: Some(vec![]),
+            ..Default::default()
+        };
+        assert!(o4.excludes().is_empty());
+    }
+
     // Unique temp dir per call (mirrors Go t.TempDir()).
     fn temp_dir() -> String {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
