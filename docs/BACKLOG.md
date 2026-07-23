@@ -6,7 +6,7 @@ Prioritized future work and tech debt. The port itself is complete and byte-pari
 
 ## P1 — release readiness
 
-_All P1 items are complete — see Done below. Remaining open work is the crates.io publish under P3._
+_All P1 items are complete — see Done below. The crate ships via GitHub Releases only (crates.io publish decided against — see "Won't do")._
 
 ### Done (2026-07-22)
 - ~~Add a git remote + publish~~ — remote live at <https://github.com/inovacc/reposmerge-rs>; pushed and tag `v1.0.0` released with 5 cross-platform binaries (commits `9c4652d`/`bebb878`).
@@ -30,8 +30,13 @@ These are documented, intentional deviations — track them in case downstream n
 
 | Item | Notes | Effort |
 |------|-------|--------|
-| Publish to crates.io | **Decision:** publish as `reposmerge` — the Go original is not on crates.io, so no name collision is expected (fall back to a suffixed name if taken). Remote dependency now satisfied — **unblocked**. | S |
 | Cross-platform TreeHash normalization | Only if cross-platform hash equality becomes a requirement. | M |
 | CI action-version bumps | Keep `actions/*` current as they age (e.g. `actions/checkout` bumped v4→v5 in `bebb878`). Low priority, ongoing. | S |
+
+## Won't do
+
+| Item | Decision |
+|------|----------|
+| Publish to crates.io | **Decided against** — this crate is distributed via GitHub Releases only, not crates.io. Enforced with `publish = false` in `Cargo.toml`. |
 
 Effort key: S ≈ <1 day, M ≈ 1–3 days, L ≈ >3 days.

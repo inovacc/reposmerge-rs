@@ -11,7 +11,8 @@ _Generated: 2026-07-22_
 - **CI + release live** — CI green on ubuntu/macos/windows + coverage job; `release.yml` publishes 5 cross-platform binaries on a `v*` tag.
 - **Git tag `v1.0.0`** released at <https://github.com/inovacc/reposmerge-rs/releases/tag/v1.0.0>.
 
+- **Distribution:** GitHub Releases only — **not** published to crates.io (`publish = false` in `Cargo.toml`).
+
 ## v1.1.0 — Post-release polish (tentative, next)
 
-- Publish to **crates.io** as `reposmerge` (remote dependency now satisfied; no known name collision).
-- Any post-release polish surfaced after publish (optional CI action-version bumps, optional cross-platform TreeHash normalization if needed).
+- Optional post-release polish only: CI action-version bumps as they age, and cross-platform TreeHash normalization *if* cross-OS hash equality ever becomes a requirement.

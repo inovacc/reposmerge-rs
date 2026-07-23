@@ -5,6 +5,9 @@ edition = "2021"
 rust-version = "1.74"
 description = "Consolidate duplicated/scattered git repo copies into canonical repos (Rust port of inovacc/reposmerge)"
 license = "BSD-3-Clause"
+# Not published to crates.io — distributed via GitHub Releases only. This blocks
+# an accidental `cargo publish`.
+publish = false
 authors = ["dyammarcano <dyam.marcano@gmail.com>"]
 repository = "https://github.com/inovacc/reposmerge-rs"
 homepage = "https://github.com/inovacc/reposmerge-rs"

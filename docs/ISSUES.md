@@ -26,4 +26,4 @@ The safety atomic-rollback test is **Windows-only** (skipped elsewhere, mirrorin
 
 ## Repository is local-only — RESOLVED (2026-07-22)
 
-~~There is no git remote configured for this crate.~~ **Resolved:** the repository is now live at <https://github.com/inovacc/reposmerge-rs> (public, default branch `main`) with tag `v1.0.0` released. The only remaining distribution item is the crates.io publish (tracked in `docs/BACKLOG.md`).
+~~There is no git remote configured for this crate.~~ **Resolved:** the repository is now live at <https://github.com/inovacc/reposmerge-rs> (public, default branch `main`) with tag `v1.0.0` released. Distribution is via GitHub Releases only — the crate is not published to crates.io (`publish = false`).

@@ -18,14 +18,14 @@ The entire tool has been ported 1:1 from `github.com/inovacc/reposmerge` (Go sou
 - **Coverage (cargo-llvm-cov):** 88.20% line · 87.58% region · 83.18% function. Lowest module is `main.rs` at 52.7% (CLI wiring — exercised mainly via the real-binary differential rather than unit tests).
 - Every module carries tests: model, gitx, fingerprint, group, discover, report (byte-golden), safety (Windows rollback), strategy, consolidate (real-git), main (CLI), e2e (full pipeline). See `PORT-TRACK.md` for the per-module ledger.
 
-## Phase 1 — Release & distribution (in progress)
+## Phase 1 — Release & distribution (complete)
 
 - [x] CI workflow — fmt-check + `clippy -D warnings` + build + test on linux/macos/windows, plus a `cargo-llvm-cov` coverage job (`.github/workflows/ci.yml`, commit `1c5701b`).
 - [x] Clippy-clean gate + `rustfmt.toml`/`clippy.toml` config (commit `7e14d42`).
 - [x] Release packaging — cross-platform binaries for 5 targets on a `v*` tag (`.github/workflows/release.yml`, commit `1c5701b`). **SHIPPED** — tag `v1.0.0` released, workflow green, 5 binaries published.
 - [x] Cargo publish metadata (authors/repository/keywords/categories/readme/rust-version, commit `da3463f`).
 - [x] Add a git remote and push the repository — remote live at <https://github.com/inovacc/reposmerge-rs> (commits `9c4652d`/`bebb878`).
-- [ ] Publish to crates.io (name `reposmerge`; the Go original is not on crates.io, so no collision expected — fall back to a suffixed name if taken). **Now unblocked** — the remote exists.
+- [x] Distribution decided: **GitHub Releases only** — not published to crates.io (`publish = false` in `Cargo.toml`).
 
 ## Phase 2 — Post-parity enhancements (backlog)
 
