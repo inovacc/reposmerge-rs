@@ -374,6 +374,17 @@ boundary, see below); reposmerge's own stdout lines match byte-for-byte.
   (fail→green; needs real `git` on PATH for the e2e + any real-git tests), fill
   provenance `PENDING-EXEC` hashes, flip rows 10/11/e2e `verified`, and commit.
 
+## DELIBERATE DEVIATION — smart-match grouping (post-sign, default-on)
+The `group` module now keys **lineage-first** (root-commit set) instead of Go's
+remote-URL-first scheme, so a remote-backed copy and a local-only copy of the same
+repo — and case-variant remote URLs — unify into ONE group (Go split them). Strict
+superset of Go grouping (same-lineage still merges; divergent lineage still splits),
+fully lossless (`verify` still green). Grouping OUTPUT now intentionally diverges from
+the Go oracle; report serialization parity is unaffected. Proven by live differential
+(remote-vs-local now 1 group; Go still 2) + 6 new `group` unit tests. See
+`src/group.rs` module doc + `docs/ISSUES.md`. This supersedes the earlier
+"0 differential divergences" claim on the GROUPING dimension only.
+
 ## Deviations / gaps
 - `app` (mantle shim): no source tests — characterization test written (see above).
 - `model`: PARITY-VERIFY zero `time.Time`. Go zero value → JSON

@@ -18,6 +18,13 @@
       "kind": "test-hardening",
       "modules": ["cmd", "e2e"],
       "note": "Added tests/cli.rs full-pipeline physical-verify gate: scan->plan->apply --confirm (post-apply physical verification OK) -> verify --physical (verify OK), asserting an extra local-only union commit survives on disk. Proves the binary functionally consolidates + self-proves no loss. No source re-port."
+    },
+    {
+      "commit": "pending",
+      "date": "2026-07-23",
+      "kind": "deliberate-deviation",
+      "modules": ["group"],
+      "note": "Smart-match grouping (user-chosen, default-on): key repo identity lineage-first (root-commit set) instead of Go's remote-URL-first. Unifies remote-backed vs local-only copies of the same repo and case-variant remote URLs that Go wrongly split. Strict superset of Go grouping; fully lossless (verify still green). Grouping OUTPUT now intentionally deviates from the Go oracle (report serialization parity unaffected). Source binding unchanged. See src/group.rs + docs/ISSUES.md + PORT-TRACK.md."
     }
   ],
   "modules": {
