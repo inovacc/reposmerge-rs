@@ -401,6 +401,26 @@ pub struct Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        // score() is strictly monotonic in `ahead` when all else is equal and
+        // zero (the recency term uses the zero-time timestamp in both, so it
+        // cancels). Faithful to the port: ahead is weighted 1_000_000 each.
+        #[test]
+        fn prop_score_monotonic_in_ahead(a in 0i64..1000, b in 0i64..1000) {
+            prop_assume!(a < b);
+            let fa = Fingerprint { ahead: a, ..Default::default() };
+            let fb = Fingerprint { ahead: b, ..Default::default() };
+            prop_assert!(
+                fb.score() > fa.score(),
+                "score(ahead={}) = {} should exceed score(ahead={}) = {}",
+                b, fb.score(), a, fa.score()
+            );
+        }
+    }
 
     // Faithful port of Go TestScoreOrdersByAhead.
     #[test]

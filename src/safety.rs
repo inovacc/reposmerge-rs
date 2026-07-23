@@ -603,6 +603,63 @@ mod tests {
         drop(handle); // keep handle alive until after assertions
     }
 
+    // UNIX-ONLY: mirrors the Windows-only rollback test. Forces a LATER step
+    // (clearing the existing dst) to fail by making dst's PARENT directory
+    // read-only (0o555), so remove_all(dst) fails with EACCES after the copy
+    // phase. Asserts the rollback removed the temp sibling and left dst's
+    // original file intact. ROOT bypasses permission checks, so if the call
+    // unexpectedly succeeds we treat it as running-as-root and skip.
+    #[cfg(unix)]
+    #[test]
+    fn copy_tree_atomic_rollback_on_failure_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let src = unique_dir("ctaru-src");
+        write_file(&src.join("newfile.txt"), "from-src");
+
+        // Parent P holds dst; dst has an original file.
+        let parent = unique_dir("ctaru-parent");
+        let dst = parent.join("out");
+        fs::create_dir_all(&dst).unwrap();
+        let original = dst.join("original.txt");
+        write_file(&original, "original");
+
+        let tmp = format!("{}.reposmerge-tmp", dst.to_str().unwrap());
+
+        // Make P read-only so removing/creating entries inside it fails.
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555)).unwrap();
+
+        let res = copy_tree_atomic(src.to_str().unwrap(), dst.to_str().unwrap(), &[], false);
+
+        // ROOT bypasses permission bits: if it succeeded, we are root -> skip.
+        if res.is_ok() {
+            fs::set_permissions(&parent, fs::Permissions::from_mode(0o755)).unwrap();
+            let _ = fs::remove_dir_all(&parent);
+            let _ = fs::remove_dir_all(&src);
+            return; // documented skip: permissions did not block (running as root)
+        }
+
+        // Capture assertions while still under read-only P, but restore perms
+        // FIRST so the temp dir can be cleaned up regardless of assert outcome.
+        let tmp_exists = Path::new(&tmp).exists();
+        let original_exists = original.exists();
+
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(res.is_err(), "expected error when dst cannot be cleared");
+        assert!(
+            !tmp_exists,
+            "temp sibling should have been removed by rollback"
+        );
+        assert!(
+            original_exists,
+            "dst's original file should be untouched after failed swap"
+        );
+
+        let _ = fs::remove_dir_all(&parent);
+        let _ = fs::remove_dir_all(&src);
+    }
+
     #[test]
     fn copy_tree_atomic_dry_run() {
         let src = unique_dir("ctadr-src");
@@ -694,6 +751,35 @@ mod tests {
         let missing = unique_dir("thm").join("does-not-exist");
         let h = tree_hash(missing.to_str().unwrap(), &[]).unwrap();
         assert_eq!(h, "", "expected empty hash for missing root, got {h:?}");
+    }
+
+    // Symlink parity with Go filepath.Walk (lstat-based, does NOT follow symlinks):
+    // a symlinked directory must NOT be descended, so adding one to a tree leaves
+    // the hash unchanged (walkdir's default follow_links=false matches Go). If the
+    // symlink were followed, `link/b.txt` would appear and the hashes would differ.
+    #[cfg(unix)]
+    #[test]
+    fn tree_hash_does_not_follow_symlinked_dir() {
+        use std::os::unix::fs::symlink;
+
+        let plain = unique_dir("ths-plain");
+        write_file(&plain.join("a.txt"), "y");
+        fs::create_dir_all(plain.join("realdir")).unwrap();
+        write_file(&plain.join("realdir").join("b.txt"), "x");
+        let h_plain = tree_hash(plain.to_str().unwrap(), &[]).unwrap();
+
+        let linked = unique_dir("ths-linked");
+        write_file(&linked.join("a.txt"), "y");
+        fs::create_dir_all(linked.join("realdir")).unwrap();
+        write_file(&linked.join("realdir").join("b.txt"), "x");
+        symlink(linked.join("realdir"), linked.join("link")).unwrap();
+        let h_linked = tree_hash(linked.to_str().unwrap(), &[]).unwrap();
+
+        assert!(!h_plain.is_empty());
+        assert_eq!(
+            h_plain, h_linked,
+            "a symlinked dir must not be descended (Go filepath.Walk parity)"
+        );
     }
 
     #[test]

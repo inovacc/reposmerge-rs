@@ -275,7 +275,38 @@ pub(crate) fn is_third_party(path: &str, owner: &str, scope: &Scope) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use std::path::MAIN_SEPARATOR;
+
+    // NOTE: normalize_url is intentionally NOT idempotent. Go's TrimPrefix/
+    // TrimSuffix strip a prefix/suffix exactly ONCE, so a doubled scheme like
+    // "https://https://x" normalizes to "https://x" on the first pass and "x" on
+    // the second. The port matches Go byte-for-byte, so idempotence is not a valid
+    // invariant here — do not assert it. See test_normalize_url for the faithful cases.
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        // normalize_url never panics on arbitrary input (basic robustness).
+        #[test]
+        fn prop_normalize_url_no_panic(s in ".*") {
+            let _ = normalize_url(&s);
+        }
+
+        // source_disc: for any non-empty input the token is exactly 6 lowercase
+        // hex chars and is deterministic across calls.
+        #[test]
+        fn prop_source_disc_invariants(s in "\\PC+") {
+            let a = source_disc(&s);
+            let b = source_disc(&s);
+            prop_assert_eq!(&a, &b); // deterministic
+            prop_assert_eq!(a.len(), 6); // exactly 6 chars
+            prop_assert!(
+                a.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+                "expected lowercase hex, got {:?}",
+                a
+            );
+        }
+    }
 
     // Faithful port of Go TestNormalizeURL.
     #[test]

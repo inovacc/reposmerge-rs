@@ -214,6 +214,44 @@ fn machine_rank(m: &str) -> i32 {
 mod tests {
     use super::*;
     use crate::model::Fingerprint;
+    use proptest::prelude::*;
+
+    // Build a path from random segments joined by '/', interleaved with arbitrary
+    // strings, to stress path_clean's `.`/`..`/empty-element handling.
+    fn path_strategy() -> impl Strategy<Value = String> {
+        let seg = prop_oneof![
+            Just("a".to_string()),
+            Just("b".to_string()),
+            Just("..".to_string()),
+            Just(".".to_string()),
+            Just("".to_string()),
+            "\\PC{0,4}",
+        ];
+        prop::collection::vec(seg, 0..8).prop_map(|parts| parts.join("/"))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        // path_clean is idempotent: cleaning a cleaned path is a no-op.
+        #[test]
+        fn prop_path_clean_idempotent(s in path_strategy()) {
+            let once = path_clean(&s);
+            let twice = path_clean(&once);
+            prop_assert_eq!(twice, once);
+        }
+
+        // The cleaned result never starts with "./" and (for a non-root result)
+        // never ends with a trailing '/'.
+        #[test]
+        fn prop_path_clean_shape(s in path_strategy()) {
+            let c = path_clean(&s);
+            prop_assert!(!c.starts_with("./"), "cleaned path starts with ./: {:?}", c);
+            if c != "/" {
+                prop_assert!(!c.ends_with('/'), "cleaned path ends with /: {:?}", c);
+            }
+        }
+    }
 
     fn mk(machine: &str, ahead: i64, commits: &[&str]) -> Copy {
         Copy {

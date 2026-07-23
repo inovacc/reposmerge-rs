@@ -213,4 +213,53 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0], "rev-parse HEAD");
     }
+
+    fn unique_dir(tag: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let p = std::env::temp_dir().join(format!(
+            "reposmerge-gitx-{tag}-{}-{nanos}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn is_repo_true_false() {
+        let dir = unique_dir("isrepo");
+        assert!(!is_repo(&dir), "empty dir must not be a repo");
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        assert!(is_repo(&dir), "dir with .git must be a repo");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ExecRunner error path: running git in a non-repo dir fails, and the
+    // GitError Display reproduces the Go framing including the dir. Needs git on
+    // PATH (conductor has it).
+    #[test]
+    fn exec_runner_errors_in_non_repo() {
+        let dir = unique_dir("nonrepo");
+        let dir_str = dir.to_string_lossy().to_string();
+        let res = new_runner().run(&dir_str, &["rev-parse", "--verify", "HEAD"]);
+        assert!(res.is_err(), "rev-parse in a non-repo must error");
+        let msg = res.unwrap_err().to_string();
+        assert!(
+            msg.contains("git rev-parse --verify HEAD (in "),
+            "unexpected error framing: {msg}"
+        );
+        assert!(msg.contains(&dir_str), "error should name the dir: {msg}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // Fake error path: a registered error key returns Err (key = args joined by
+    // space).
+    #[test]
+    fn fake_error_path() {
+        let f = Fake::new().with_error("boom", "x");
+        let res = f.run("/repo", &["boom"]);
+        assert!(res.is_err(), "expected canned error for key 'boom'");
+    }
 }
