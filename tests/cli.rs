@@ -375,21 +375,35 @@ fn full_pipeline_physical_verify_preserves_branches() {
         .success()
         .stdout(contains("verify OK"));
 
-    // The extra local-only commit must be reachable in the consolidated repo.
+    // The extra local-only commit must be preserved on disk somewhere under the
+    // consolidated tree. Ask with `git cat-file -e <sha>^{commit}` — the same
+    // object-existence primitive the tool's own physical_reachability uses —
+    // rather than `git log --all`, which only surfaces *ref-reachable* commits
+    // and so is sensitive to how a given git version/config lays out refs after
+    // a union fetch or quarantine copy.
     let mut found = false;
     for entry in walk_git_repos(&destdir) {
-        let log = Command::new("git")
-            .args(["-C", entry.to_str().unwrap(), "log", "--all", "--format=%H"])
+        let ok = Command::new("git")
+            .args([
+                "-C",
+                entry.to_str().unwrap(),
+                "cat-file",
+                "-e",
+                &format!("{extra_sha}^{{commit}}"),
+            ])
             .output()
-            .expect("git log");
-        if String::from_utf8_lossy(&log.stdout).contains(&extra_sha) {
+            .expect("git cat-file")
+            .status
+            .success();
+        if ok {
             found = true;
             break;
         }
     }
     assert!(
         found,
-        "extra local-only commit {extra_sha} not preserved in consolidated tree"
+        "extra local-only commit {extra_sha} not preserved in consolidated tree (repos scanned: {:?})",
+        walk_git_repos(&destdir)
     );
 
     let _ = std::fs::remove_dir_all(&tree);
